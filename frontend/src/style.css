@@ -380,6 +380,49 @@ body {
   text-align: center;
 }
 
+/* ---------- main menu (Solo / Private / Matchmaking) ---------- */
+
+.menu-modal { max-width: 760px; }
+
+.menu-sections {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 18px 0 4px;
+}
+
+.menu-section {
+  background: var(--panel-2);
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.menu-section h3 {
+  margin: 0;
+  font-family: var(--pixel);
+  font-size: 11px;
+  text-shadow: 1px 1px 0 var(--ink);
+}
+
+#menu-solo h3 { color: var(--cyan); }
+#menu-private h3 { color: var(--pink); }
+#menu-matchmaking h3 { color: var(--green); }
+
+.menu-section-desc { margin: 0; font-size: 11px; line-height: 1.5; color: var(--fg-dim); }
+
+.menu-section-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+.menu-section-actions .btn { width: 100%; }
+
+#menu-solo .theme-grid { margin-bottom: 0; }
+
+@media (max-width: 640px) {
+  .menu-sections { grid-template-columns: 1fr; }
+}
+
 /* ---------- theme preview countdown ---------- */
 
 .preview-box {

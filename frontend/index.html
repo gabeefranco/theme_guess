@@ -60,18 +60,38 @@
   </div>
 
   <div id="intro-modal" class="modal-overlay">
-    <div class="modal">
+    <div class="modal menu-modal">
       <h2>🕹️ THEME GUESS</h2>
-      <p>A snippet of code is hiding a classic color theme.</p>
-      <ol>
-        <li>Click any word in the code — every token of that <em>kind</em> lights up together.</li>
-        <li>Pick a color for that kind. Watch it paint everywhere at once.</li>
-        <li>Repeat until all 12 kinds have a color, including the background.</li>
-        <li>Hit <strong>REVEAL MATCH</strong> to see how close your palette lands to the real thing.</li>
-      </ol>
-      <p class="pick-theme-label">▼ PICK YOUR TARGET THEME ▼</p>
-      <div id="theme-grid" class="theme-grid"></div>
-      <button id="start-btn" class="btn primary big">▶ PRESS START</button>
+      <p>A snippet of code is hiding a classic color theme. Pick how you want to play.</p>
+
+      <div class="menu-sections">
+        <section id="menu-solo" class="menu-section" aria-label="Solo">
+          <h3>🧑‍💻 SOLO</h3>
+          <p class="menu-section-desc">Click any word to color it, then reveal how close your palette lands to the real theme.</p>
+          <p class="pick-theme-label">▼ PICK A THEME ▼</p>
+          <div id="theme-grid" class="theme-grid"></div>
+          <div class="menu-section-actions">
+            <button id="start-btn" class="btn primary">▶ PLAY</button>
+          </div>
+        </section>
+
+        <section id="menu-private" class="menu-section" aria-label="Private">
+          <h3>🔒 PRIVATE</h3>
+          <p class="menu-section-desc">Play with friends in a private room, by invite code or a fresh room.</p>
+          <div class="menu-section-actions">
+            <button id="enter-code-btn" class="btn ghost">Enter Code</button>
+            <button id="create-room-btn" class="btn ghost">Create Room</button>
+          </div>
+        </section>
+
+        <section id="menu-matchmaking" class="menu-section" aria-label="Matchmaking">
+          <h3>🌐 MATCHMAKING</h3>
+          <p class="menu-section-desc">Get paired with another player looking for a match right now.</p>
+          <div class="menu-section-actions">
+            <button id="find-match-btn" class="btn primary">Find Match</button>
+          </div>
+        </section>
+      </div>
     </div>
   </div>
 
