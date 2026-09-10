@@ -57,6 +57,7 @@ import type {
 import { MultiplayerMatch } from '../game/multiplayerMatch';
 import { OpponentView } from '../game/opponentView';
 import { ThemeGuessGame } from '../game/ThemeGuessGame';
+import { openThemeVote, type ThemeVoteHandle } from './themeVote';
 
 export interface PrivateRoomFlowElements {
   /** Empty `.modal-overlay` mount (`#private-room-mount` in index.html)
@@ -135,6 +136,16 @@ export function createPrivateRoomFlow(
   let game: ThemeGuessGame | null = null;
   let match: MultiplayerMatch | null = null;
   const splitView = requireEl<HTMLElement>('split-view');
+
+  let activeVoteHandle: ThemeVoteHandle | null = null;
+  // Set while the local theme-vote settle animation (spin/"YOU AGREE!")
+  // is still playing. `round:start` for the settled match can arrive
+  // from the server before that animation finishes (the backend fires
+  // it right after `vote:settled`) — in that case the payload is
+  // buffered here and `enterRound` runs once the animation completes,
+  // so the vote's own reveal is never cut short.
+  let voteAnimationPending = false;
+  let bufferedRoundStart: RoundStartMessage | null = null;
 
   function clearTransitionTimeout(): void {
     if (transitionTimeoutId !== null) {
@@ -271,10 +282,11 @@ export function createPrivateRoomFlow(
         break;
 
       case 'vote-wait':
-        // TODO(#16): replace with real theme-vote modal (pick from
-        // `vote:start.themeIds`, live opponent-choice indicator via
-        // `vote:opponentChoice`). This ticket only needs to not hang —
-        // `round:start` (below) always follows `vote:settled`.
+        // Transient placeholder for the brief gap between `room:joined`
+        // and the server's `vote:start` (sent synchronously right
+        // after) — `client.on('vote:start', ...)` below replaces this
+        // mount content with the real `ui/themeVote.ts` modal as soon
+        // as it arrives.
         mount.innerHTML = `
           <div class="modal private-room-modal private-room-vote-wait">
             <h2>🗳 Theme Vote</h2>
@@ -340,6 +352,16 @@ export function createPrivateRoomFlow(
     return match;
   }
 
+  /** Common tail of both `round:start` handling paths (immediate, or
+   * deferred until a theme-vote settle animation finishes): hides this
+   * flow's own overlay, shows the board, and starts/reuses the match. */
+  function enterRound(payload: RoundStartMessage): void {
+    render({ kind: 'hidden' });
+    callbacks.hideMenu();
+    themeNameBadge.textContent = THEMES[payload.themeId].name;
+    ensureMatch(payload).startRound(payload);
+  }
+
   client.on('room:created', (msg) => {
     render({ kind: 'create-waiting', code: msg.code });
   });
@@ -358,6 +380,20 @@ export function createPrivateRoomFlow(
     }
   });
 
+  client.on('vote:start', (msg) => {
+    if (!roomActive) return;
+    voteAnimationPending = true;
+    activeVoteHandle = openThemeVote(client, mount, msg, () => {
+      activeVoteHandle = null;
+      voteAnimationPending = false;
+      if (bufferedRoundStart) {
+        const payload = bufferedRoundStart;
+        bufferedRoundStart = null;
+        enterRound(payload);
+      }
+    });
+  });
+
   client.on('round:nextMatch', (msg: RoundNextMatchMessage) => {
     if (!roomActive) return;
     render({ kind: 'match-transition', match: msg.match });
@@ -365,14 +401,22 @@ export function createPrivateRoomFlow(
 
   client.on('round:start', (payload) => {
     if (!roomActive) return;
-    render({ kind: 'hidden' });
-    callbacks.hideMenu();
-    themeNameBadge.textContent = THEMES[payload.themeId].name;
-    ensureMatch(payload).startRound(payload);
+    if (voteAnimationPending) {
+      // The settled theme's `round:start` beat the local vote-modal
+      // reveal animation (see `voteAnimationPending`'s declaration) —
+      // hold it until the animation's settle callback fires.
+      bufferedRoundStart = payload;
+      return;
+    }
+    enterRound(payload);
   });
 
   client.on('room:closed', (msg) => {
     roomActive = false;
+    activeVoteHandle?.destroy();
+    activeVoteHandle = null;
+    voteAnimationPending = false;
+    bufferedRoundStart = null;
     // The opponent's own `MultiplayerMatch.teardownRound()` never ran
     // for this abandoned round (only the quitter's local instance tore
     // its round down) — hide the stale split-view pane here so it
