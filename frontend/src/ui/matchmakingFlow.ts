@@ -8,18 +8,15 @@
 // sends them in the opposite order — see the `foundAt`/`roundStartPayload`
 // handling below, which treats both orderings identically.
 //
-// Owns a single `OpponentView` / `ThemeGuessGame` / `MultiplayerMatch`
-// trio for the lifetime of the page, constructed lazily on the first
-// matchmaking round and reused (`setTheme`/`setSnippet`) on every
-// subsequent one — mirroring how `ui/soloConfigFlow.ts` reuses a single
-// `ThemeGuessGame` across solo replays. `ThemeGuessGame`'s constructor
-// binds fresh DOM listeners every time it's called, so constructing a
-// second one while a first is still alive (e.g. mixing solo/bot play
-// with matchmaking in the same page load) would double up event
-// handling; out of scope here, same single-orchestrator assumption
-// `game/multiplayerMatch.ts`'s header documents.
+// Owns a single `OpponentView` / `MultiplayerMatch` pair for the
+// lifetime of the page, constructed lazily on the first matchmaking
+// round and reused on every subsequent one. The `ThemeGuessGame` itself
+// is *not* owned here — it's the one shared instance from
+// `game/sharedGame.ts` (solo, matchmaking, and private rooms all start
+// rounds against the same `#code-canvas`, so exactly one instance must
+// ever exist; see that module's header for why).
 
-import { ThemeGuessGame } from '../game/ThemeGuessGame';
+import { getSharedGame } from '../game/sharedGame';
 import { MultiplayerMatch } from '../game/multiplayerMatch';
 import { OpponentView } from '../game/opponentView';
 import { THEMES } from '../data/themes';
@@ -103,7 +100,6 @@ export function createMatchmakingFlow(
   // every subsequent one this page load — see this module's header.
   let opponentView: OpponentView | null = null;
   let match: MultiplayerMatch | null = null;
-  let game: ThemeGuessGame | null = null;
 
   function clearBanTimers(): void {
     stopBanBanner?.();
@@ -194,14 +190,10 @@ export function createMatchmakingFlow(
     themeNameBadge.textContent = THEMES[payload.themeId].name;
 
     if (!opponentView) opponentView = new OpponentView('opponent-canvas', payload.snippetIndex);
+    const isNewMatch = !match;
     if (!match) match = new MultiplayerMatch(client, opponentView, handleLocalQuit);
-    if (!game) {
-      game = new ThemeGuessGame(payload.themeId, payload.snippetIndex, (id, hex) => match!.handleLocalAssignment(id, hex));
-      match.bindGame(game);
-    } else {
-      game.setTheme(payload.themeId);
-      game.setSnippet(payload.snippetIndex);
-    }
+    const game = getSharedGame(payload.themeId, payload.snippetIndex, (id, hex) => match!.handleLocalAssignment(id, hex));
+    if (isNewMatch) match.bindGame(game);
 
     hooks.showBoard();
     match.startRound(payload);

@@ -16,33 +16,17 @@
 // its own listeners on the same client, so this flow must never react
 // to a round that belongs to a matchmaking match.
 //
-// Session component lifetime: exactly one `ThemeGuessGame` + one
-// `OpponentView` + one `MultiplayerMatch` are constructed, lazily, the
-// first time a room's first `round:start` arrives, then reused for
-// every subsequent match in that room's up-to-5-match series by calling
-// `match.startRound()` again — `MultiplayerMatch.startRound()` already
-// tears down and re-subscribes its own per-round listeners/timer, so
-// it's safe to call repeatedly on the same instance (confirmed by
-// reading its source; no fix needed there for this). Constructing a
-// *second* `ThemeGuessGame` for a later room, or for matchmaking, would
-// double-bind its canvas/document event listeners onto the single
-// shared `#code-canvas` — so this module's `game`/`opponentView`/`match`
-// are deliberately never rebuilt once created, only reconfigured via
-// `startRound`.
-//
-// Known cross-flow gap (see this ticket's final report): main.ts's own
-// solo-mode `game` singleton is *separately* constructed by
-// `soloConfigFlow`, hardcoding its `onCategoryAssigned` callback to
-// `soloConfigFlow.handleLocalAssignment` forever. If a player plays Solo
-// and then enters a private room in the same page load, this module
-// necessarily constructs its *own* `ThemeGuessGame`, which double-binds
-// listeners on the same `#code-canvas`/`#category-panel`/`document`
-// solo's instance already bound. Fixing this needs a shared, swappable
-// dispatch for `game`'s callback at the main.ts composition-root level
-// (mirroring how `soloConfigFlow` already multiplexes "alone" vs "vs
-// bot" internally) — out of this ticket's edit scope (main.ts's
-// `game`/`soloConfigFlow` construction block is off-limits here, see
-// this ticket's report).
+// Session component lifetime: one `OpponentView` + one `MultiplayerMatch`
+// are constructed, lazily, the first time a room's first `round:start`
+// arrives, then reused for every subsequent match in that room's
+// up-to-5-match series by calling `match.startRound()` again —
+// `MultiplayerMatch.startRound()` already tears down and re-subscribes
+// its own per-round listeners/timer, so it's safe to call repeatedly on
+// the same instance. The `ThemeGuessGame` itself is *not* owned here —
+// it's the one shared instance from `game/sharedGame.ts` (solo,
+// matchmaking, and this flow all start rounds against the same
+// `#code-canvas`, so exactly one instance must ever exist across the
+// whole page; see that module's header for why).
 
 import { THEMES } from '../data/themes';
 import type { GameClient } from '../net/client';
@@ -56,7 +40,7 @@ import type {
 } from '../net/messages';
 import { MultiplayerMatch } from '../game/multiplayerMatch';
 import { OpponentView } from '../game/opponentView';
-import { ThemeGuessGame } from '../game/ThemeGuessGame';
+import { getSharedGame } from '../game/sharedGame';
 import { openThemeVote, type ThemeVoteHandle } from './themeVote';
 
 export interface PrivateRoomFlowElements {
@@ -133,7 +117,6 @@ export function createPrivateRoomFlow(
   let transitionTimeoutId: number | null = null;
 
   let opponentView: OpponentView | null = null;
-  let game: ThemeGuessGame | null = null;
   let match: MultiplayerMatch | null = null;
   const splitView = requireEl<HTMLElement>('split-view');
 
@@ -335,20 +318,21 @@ export function createPrivateRoomFlow(
    * `multiplayerMatch.ts`'s documented two-phase-init order, then reuses
    * them for every later `round:start` this room sends. */
   function ensureMatch(payload: RoundStartMessage): MultiplayerMatch {
-    if (match && game) return match;
-
-    opponentView = new OpponentView('opponent-canvas', payload.snippetIndex);
-    match = new MultiplayerMatch(client, opponentView, () => {
-      // Local player quit mid-round: per PROTOCOL.md "Quit", the
-      // quitter gets no room:closed of their own (only the remaining
-      // player does) — so this is the definitive "I've left" signal,
-      // not something to wait on a server reply for.
-      roomActive = false;
-      callbacks.showMenu();
-      render({ kind: 'hidden' });
-    });
-    game = new ThemeGuessGame(payload.themeId, payload.snippetIndex, (id, hex) => match!.handleLocalAssignment(id, hex));
-    match.bindGame(game);
+    if (!opponentView) opponentView = new OpponentView('opponent-canvas', payload.snippetIndex);
+    const isNewMatch = !match;
+    if (!match) {
+      match = new MultiplayerMatch(client, opponentView, () => {
+        // Local player quit mid-round: per PROTOCOL.md "Quit", the
+        // quitter gets no room:closed of their own (only the remaining
+        // player does) — so this is the definitive "I've left" signal,
+        // not something to wait on a server reply for.
+        roomActive = false;
+        callbacks.showMenu();
+        render({ kind: 'hidden' });
+      });
+    }
+    const game = getSharedGame(payload.themeId, payload.snippetIndex, (id, hex) => match!.handleLocalAssignment(id, hex));
+    if (isNewMatch) match.bindGame(game);
     return match;
   }
 

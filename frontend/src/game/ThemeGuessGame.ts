@@ -59,18 +59,26 @@ export class ThemeGuessGame {
   private height = 0;
   private categories!: CategoryStateMap;
 
-  /** `onCategoryAssigned`, when provided, fires at the end of every
-   * `applyColor` with the category and hex just assigned — multiplayer
-   * uses it to relay a bare `round:progress` and to track the local
-   * player's running color map for `round:submit`, without this class
-   * needing to know anything about the network. */
+  /** Fires at the end of every `applyColor` with the category and hex
+   * just assigned — multiplayer uses it to relay a bare
+   * `round:progress` and to track the local player's running color map
+   * for `round:submit`, without this class needing to know anything
+   * about the network. Mutable (not just constructor-set) because the
+   * app keeps a single shared `ThemeGuessGame` instance across
+   * solo/matchmaking/private-room (see `game/sharedGame.ts`) — whichever
+   * flow is currently active swaps this in rather than a new instance
+   * being constructed (which would double-bind canvas/document
+   * listeners onto the same DOM). */
+  onCategoryAssigned?: (id: CategoryId, hex: string) => void;
+
   constructor(
     themeId: ThemeId,
     snippetIndex: number = pickRandomSnippetIndex(),
-    private readonly onCategoryAssigned?: (id: CategoryId, hex: string) => void,
+    onCategoryAssigned?: (id: CategoryId, hex: string) => void,
   ) {
     this.themeId = themeId;
     this.snippetIndex = snippetIndex;
+    this.onCategoryAssigned = onCategoryAssigned;
     this.build();
     this.bindEvents();
     requestAnimationFrame((t) => this.loop(t));

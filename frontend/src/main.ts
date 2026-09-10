@@ -1,5 +1,5 @@
 import './style.css';
-import { ThemeGuessGame } from './game/ThemeGuessGame';
+import { getSharedGame } from './game/sharedGame';
 import { THEMES } from './data/themes';
 import { sound } from './engine/sound';
 import { createThemeGrid } from './ui/themeGrid';
@@ -56,8 +56,6 @@ function showView(name: ScreenName | null): void {
   }
 }
 
-let game: ThemeGuessGame | null = null;
-
 const themeGrid = createThemeGrid(themeGridEl, 'gruvbox', () => sound.playOpen());
 
 const soloConfigFlow = createSoloConfigFlow(
@@ -72,16 +70,7 @@ const soloConfigFlow = createSoloConfigFlow(
   (config) => {
     showView(null);
     runThemePreview(previewElements, config.themeId, () => {
-      if (game) {
-        game.setTheme(config.themeId);
-        game.setSnippet(config.snippetIndex);
-      } else {
-        game = new ThemeGuessGame(
-          config.themeId,
-          config.snippetIndex,
-          (id, hex) => soloConfigFlow.handleLocalAssignment(id, hex),
-        );
-      }
+      getSharedGame(config.themeId, config.snippetIndex, (id, hex) => soloConfigFlow.handleLocalAssignment(id, hex));
       themeNameBadge.textContent = THEMES[config.themeId].name;
       sound.playApply();
       soloConfigFlow.startTimer(config.timeMode);
