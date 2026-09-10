@@ -1,22 +1,21 @@
-import { tokenize } from './tokenizer.js';
-import { THEMES, PREVIEW_SAMPLE } from './theme.js';
+import { tokenize } from '../engine/tokenizer';
+import { THEMES, PREVIEW_SAMPLE } from '../data/themes';
+import type { ThemeId } from '../types';
+import { FONT_STACK } from '../game/layoutConstants';
 
 const FONT_SIZE = 16;
 const LINE_HEIGHT = 24;
 const PAD = 20;
 
-function fontStack() {
-  return "'JetBrains Mono','Fira Code',ui-monospace,SFMono-Regular,Consolas,monospace";
-}
-
 // Draws the (different, intentionally incomplete) preview snippet fully
 // colored with a theme's *real* colors — no guessing, just a flash of
 // what the target theme actually looks like.
-export function renderThemePreview(canvas, themeId) {
+export function renderThemePreview(canvas: HTMLCanvasElement, themeId: ThemeId): void {
   const ctx = canvas.getContext('2d');
+  if (!ctx) return;
   const tokens = tokenize(PREVIEW_SAMPLE);
 
-  ctx.font = `${FONT_SIZE}px ${fontStack()}`;
+  ctx.font = `${FONT_SIZE}px ${FONT_STACK}`;
   const charWidth = ctx.measureText('M').width;
 
   let lineCount = 1;
@@ -46,9 +45,9 @@ export function renderThemePreview(canvas, themeId) {
     const x = PAD + t.col * charWidth;
     const y = PAD + t.line * LINE_HEIGHT + FONT_SIZE - 3;
     ctx.font = t.type === 'comment'
-      ? `italic ${FONT_SIZE}px ${fontStack()}`
-      : `${FONT_SIZE}px ${fontStack()}`;
-    ctx.fillStyle = theme.colors[t.type] || theme.colors.punctuation;
+      ? `italic ${FONT_SIZE}px ${FONT_STACK}`
+      : `${FONT_SIZE}px ${FONT_STACK}`;
+    ctx.fillStyle = theme.colors[t.type as keyof typeof theme.colors] ?? theme.colors.punctuation;
     ctx.fillText(t.text, x, y);
   }
 }

@@ -6,7 +6,9 @@
 // Tokyo Night (enkia/tokyo-night-vscode palette), Dracula and Catppuccin
 // Mocha (official published palettes).
 
-export const CATEGORY_META = [
+import type { CategoryMeta, Themes } from '../types';
+
+export const CATEGORY_META: CategoryMeta[] = [
   { id: 'background', label: 'Background', icon: '🌑' },
   { id: 'keyword', label: 'Keywords', icon: '🔑' },
   { id: 'string', label: 'Strings', icon: '🧵' },
@@ -21,7 +23,7 @@ export const CATEGORY_META = [
   { id: 'comment', label: 'Comments', icon: '💬' },
 ];
 
-export const THEMES = {
+export const THEMES: Themes = {
   gruvbox: {
     name: 'Gruvbox Dark',
     colors: {
@@ -106,6 +108,7 @@ if (accent.hue > 180 && !primary.locked) {
 
 export default palette;
 `;
+
 // A short, different snippet used for the pre-game theme reveal. It's
 // deliberately missing some token kinds the real game asks about (no
 // numeric literals, no true/false/null/undefined/this) so the preview

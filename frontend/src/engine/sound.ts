@@ -1,13 +1,17 @@
 // Tiny synthesized SFX — no audio assets, just oscillators with a
 // quick exponential envelope. Created lazily on first user gesture.
 
-class Sound {
-  constructor() {
-    this.ctx = null;
-    this.muted = false;
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext;
   }
+}
 
-  ensure() {
+class Sound {
+  private ctx: AudioContext | null = null;
+  muted = false;
+
+  private ensure(): AudioContext | null {
     if (!this.ctx) {
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return null;
@@ -17,7 +21,7 @@ class Sound {
     return this.ctx;
   }
 
-  tone(freq, dur = 0.12, type = 'sine', gain = 0.05, when = 0) {
+  private tone(freq: number, dur = 0.12, type: OscillatorType = 'sine', gain = 0.05, when = 0): void {
     if (this.muted) return;
     const ctx = this.ensure();
     if (!ctx) return;
@@ -35,14 +39,16 @@ class Sound {
     osc.stop(t0 + dur + 0.03);
   }
 
-  playOpen() { this.tone(660, 0.07, 'triangle', 0.035); }
+  playOpen(): void {
+    this.tone(660, 0.07, 'triangle', 0.035);
+  }
 
-  playApply() {
+  playApply(): void {
     this.tone(523.25, 0.09, 'sine', 0.05);
     this.tone(783.99, 0.12, 'sine', 0.045, 0.06);
   }
 
-  playReveal(score) {
+  playReveal(score: number): void {
     const notes = score >= 85
       ? [523.25, 659.25, 783.99, 1046.5]
       : score >= 60
@@ -51,7 +57,7 @@ class Sound {
     notes.forEach((f, i) => this.tone(f, 0.2, 'triangle', 0.05, i * 0.1));
   }
 
-  toggleMute() {
+  toggleMute(): boolean {
     this.muted = !this.muted;
     return this.muted;
   }

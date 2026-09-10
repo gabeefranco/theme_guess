@@ -2,7 +2,13 @@
 // just consistent enough to bucket every word in the sample into the
 // same "kind" categories a syntax theme would color.
 
-const KEYWORDS = new Set([
+import type { Token, TokenType } from '../types';
+
+function toLookup(words: readonly string[]): Record<string, true> {
+  return Object.fromEntries(words.map((w) => [w, true] as const));
+}
+
+const KEYWORDS = toLookup([
   'const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while',
   'of', 'in', 'new', 'class', 'extends', 'constructor', 'import', 'from',
   'export', 'default', 'static', 'async', 'await', 'try', 'catch', 'finally',
@@ -10,15 +16,18 @@ const KEYWORDS = new Set([
   'yield', 'super', 'do',
 ]);
 
-const CONSTANTS = new Set(['true', 'false', 'null', 'undefined', 'this']);
+const CONSTANTS = toLookup(['true', 'false', 'null', 'undefined', 'this']);
 
 const OPS3 = ['===', '!==', '**='];
 const OPS2 = ['=>', '==', '!=', '<=', '>=', '&&', '||', '+=', '-=', '*=', '/=', '++', '--'];
 const PUNCT = '{}()[];,.';
 const OP_CHARS = '+-*/%=<>!?:&|^~';
 
-function scan(src) {
-  const raw = [];
+/** Token shape mid-scan, before line/col layout has been assigned. */
+type RawToken = Pick<Token, 'type' | 'text'>;
+
+function scan(src: string): RawToken[] {
+  const raw: RawToken[] = [];
   let i = 0;
   const n = src.length;
   while (i < n) {
@@ -70,8 +79,8 @@ function scan(src) {
 
 // Defensive: split any token that smuggled in a newline (block comments,
 // multi-line strings) so layout math stays a simple line/col grid.
-function expandNewlines(raw) {
-  const tokens = [];
+function expandNewlines(raw: RawToken[]): RawToken[] {
+  const tokens: RawToken[] = [];
   for (const t of raw) {
     if (t.type !== 'newline' && t.text.includes('\n')) {
       const parts = t.text.split('\n');
@@ -86,40 +95,45 @@ function expandNewlines(raw) {
   return tokens;
 }
 
-function classify(tokens) {
+function classifyIdentifier(tokens: RawToken[], k: number): TokenType {
+  const word = tokens[k].text;
+  let p = k - 1;
+  while (p >= 0 && (tokens[p].type === 'whitespace' || tokens[p].type === 'newline')) p--;
+  let nx = k + 1;
+  while (nx < tokens.length && (tokens[nx].type === 'whitespace' || tokens[nx].type === 'newline')) nx++;
+  const prev = p >= 0 ? tokens[p] : null;
+  const next = nx < tokens.length ? tokens[nx] : null;
+  const isCall = !!next && next.type === 'punctuation' && next.text === '(';
+  const isProp = !!prev && prev.type === 'punctuation' && prev.text === '.';
+  const isClassCtx = !!prev && prev.type === 'keyword' && ['class', 'new', 'extends'].includes(prev.text);
+
+  if (KEYWORDS[word]) return 'keyword';
+  if (CONSTANTS[word]) return 'constant';
+  if (/^[A-Z]/.test(word) && (isClassCtx || !isCall)) return 'type';
+  if (isCall) return 'function';
+  if (isProp) return 'property';
+  return 'variable';
+}
+
+function classify(tokens: RawToken[]): Token[] {
+  const result: Token[] = [];
   let line = 0;
   let col = 0;
   for (let k = 0; k < tokens.length; k++) {
     const t = tokens[k];
-    if (t.type === 'newline') { line++; col = 0; continue; }
-
-    if (t.type === 'identifier') {
-      const word = t.text;
-      let p = k - 1;
-      while (p >= 0 && (tokens[p].type === 'whitespace' || tokens[p].type === 'newline')) p--;
-      let nx = k + 1;
-      while (nx < tokens.length && (tokens[nx].type === 'whitespace' || tokens[nx].type === 'newline')) nx++;
-      const prev = p >= 0 ? tokens[p] : null;
-      const next = nx < tokens.length ? tokens[nx] : null;
-      const isCall = !!next && next.type === 'punctuation' && next.text === '(';
-      const isProp = !!prev && prev.type === 'punctuation' && prev.text === '.';
-      const isClassCtx = !!prev && prev.type === 'keyword' && ['class', 'new', 'extends'].includes(prev.text);
-
-      if (KEYWORDS.has(word)) t.type = 'keyword';
-      else if (CONSTANTS.has(word)) t.type = 'constant';
-      else if (/^[A-Z]/.test(word) && (isClassCtx || !isCall)) t.type = 'type';
-      else if (isCall) t.type = 'function';
-      else if (isProp) t.type = 'property';
-      else t.type = 'variable';
+    if (t.type === 'newline') {
+      result.push({ ...t, line, col });
+      line++;
+      col = 0;
+      continue;
     }
-
-    t.line = line;
-    t.col = col;
+    const type = t.type === 'identifier' ? classifyIdentifier(tokens, k) : t.type;
+    result.push({ type, text: t.text, line, col });
     col += t.text.length;
   }
-  return tokens;
+  return result;
 }
 
-export function tokenize(source) {
+export function tokenize(source: string): Token[] {
   return classify(expandNewlines(scan(source)));
 }

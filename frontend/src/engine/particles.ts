@@ -3,17 +3,39 @@
 
 const CONFETTI_COLORS = ['#fb4934', '#b8bb26', '#fabd2f', '#83a598', '#d3869b', '#8ec07c', '#fe8019'];
 
-export class ParticleSystem {
-  constructor() {
-    this.ripples = [];
-    this.particles = [];
-  }
+interface Ripple {
+  x: number;
+  y: number;
+  r: number;
+  maxR: number;
+  life: number;
+  color: string;
+}
 
-  spawnRipple(x, y, color = '#ebdbb2') {
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  decay: number;
+  size: number;
+  gravity: number;
+  color: string;
+  confetti: boolean;
+  rot: number;
+  vr: number;
+}
+
+export class ParticleSystem {
+  private ripples: Ripple[] = [];
+  private particles: Particle[] = [];
+
+  spawnRipple(x: number, y: number, color = '#ebdbb2'): void {
     this.ripples.push({ x, y, r: 2, maxR: 46, life: 1, color });
   }
 
-  spawnBurst(x, y, color, count = 14) {
+  spawnBurst(x: number, y: number, color: string, count = 14): void {
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 50 + Math.random() * 110;
@@ -26,11 +48,14 @@ export class ParticleSystem {
         size: 1.5 + Math.random() * 2.5,
         gravity: 90,
         color,
+        confetti: false,
+        rot: 0,
+        vr: 0,
       });
     }
   }
 
-  spawnConfetti(count, width) {
+  spawnConfetti(count: number, width: number): void {
     for (let i = 0; i < count; i++) {
       this.particles.push({
         x: Math.random() * width,
@@ -49,12 +74,12 @@ export class ParticleSystem {
     }
   }
 
-  clear() {
+  clear(): void {
     this.particles.length = 0;
     this.ripples.length = 0;
   }
 
-  update(dtMs) {
+  update(dtMs: number): void {
     const s = dtMs / 1000;
     for (const r of this.ripples) {
       r.r += (r.maxR - r.r) * 0.18;
@@ -65,14 +90,14 @@ export class ParticleSystem {
     for (const p of this.particles) {
       p.x += p.vx * s;
       p.y += p.vy * s;
-      p.vy += (p.gravity || 100) * s;
+      p.vy += p.gravity * s;
       if (p.confetti) p.rot += p.vr * s;
       p.life -= p.decay * s;
     }
     this.particles = this.particles.filter((p) => p.life > 0);
   }
 
-  draw(ctx) {
+  draw(ctx: CanvasRenderingContext2D): void {
     for (const r of this.ripples) {
       ctx.globalAlpha = Math.max(r.life, 0) * 0.6;
       ctx.strokeStyle = r.color;

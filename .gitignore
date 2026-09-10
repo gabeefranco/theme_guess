@@ -1,0 +1,15 @@
+# Dependencies
+**/node_modules/
+
+# Build output
+**/dist/
+**/.vite/
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# OS/editor cruft
+.DS_Store
+*.local
