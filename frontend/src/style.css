@@ -223,6 +223,39 @@ body {
 }
 .panel-actions .btn { width: 100%; }
 
+/* ---------- split view (in-match opponent progress pane) ---------- */
+
+.split-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 14px;
+}
+.split-view.hidden { display: none; }
+
+.split-pane {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.split-pane-label {
+  font-family: var(--pixel);
+  font-size: 10px;
+  letter-spacing: .5px;
+  color: var(--fg-dim);
+  flex: 0 0 auto;
+}
+
+.split-canvas-wrap {
+  flex: 1 1 auto;
+}
+
+.split-canvas { display: block; }
+
 .cat-card {
   background: var(--panel-2);
   border: 3px solid var(--ink);
