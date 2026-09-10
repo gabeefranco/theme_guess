@@ -3,8 +3,10 @@
 // the same round-session engine (game/session.js) up to 5 times in a
 // row, picking a random theme per match (excluding the previous
 // match's theme) unless the creator asked for `themeMode: 'chosen'`,
-// in which case real theme voting is ticket #7 — this ticket only
-// wires a narrow, synchronous stand-in (see resolveChosenTheme below).
+// in which case a 10-second theme vote (rooms/themeVote.js, see
+// PROTOCOL.md "Theme voting") settles match 1's theme once; every
+// later match in the series reuses that same voted theme (see
+// resolveChosenTheme below).
 //
 // Rooms never import or touch matchmaking's ban store: quitting a
 // private room carries no penalty, unlike quitting a matchmaking match.
@@ -13,6 +15,7 @@ import { registerHandler, onDisconnect } from '../ws/connectionHandler.js';
 import { getPlayerId, getPlayerName, sendTo } from '../ws/registry.js';
 import { createSession } from '../game/session.js';
 import { pickRandomThemeId } from '../themeIds.js';
+import { startVote } from './themeVote.js';
 
 const MAX_MATCHES = 5;
 const CODE_MIN = 100000;
@@ -77,15 +80,24 @@ function closeRoom(room, reason, quitterId) {
 }
 
 /**
- * `themeMode: 'chosen'` theme resolution is not implemented by this
- * ticket (#6) — real theme voting (`vote:start`/`vote:cast`/
- * `vote:settled`) is ticket #7. This is a narrow, synchronous stand-in
- * so #7 has an obvious integration point without this ticket blocking
- * on it: swap this function's body for the real voting flow.
+ * `themeMode: 'chosen'` theme resolution: runs the real theme vote
+ * (rooms/themeVote.js) for match 1 only. PROTOCOL.md "Theme voting"
+ * says the voted theme is reused for the whole 5-match series, so once
+ * `room.votedThemeId` is set every later startMatch() call short-
+ * circuits straight to it instead of voting again.
  */
 function resolveChosenTheme(room, cb) {
-  // TODO(#7): replace with real theme-voting flow (startVote)
-  cb(pickRandomThemeId());
+  if (room.votedThemeId !== null) {
+    cb(room.votedThemeId);
+    return;
+  }
+  startVote(room, (themeId) => {
+    // The room may have been torn down (e.g. a player disconnected)
+    // while the 10s vote was in flight; don't resurrect it.
+    if (!rooms.has(room.code)) return;
+    room.votedThemeId = themeId;
+    cb(themeId);
+  });
 }
 
 function resolveTheme(room, cb) {
@@ -160,6 +172,7 @@ export function registerRoomHandlers() {
       matchesPlayed: 0,
       previousThemeId: null,
       currentThemeId: null,
+      votedThemeId: null,
       session: null,
     };
     rooms.set(code, room);
