@@ -6,6 +6,7 @@ import { createThemeGrid } from './ui/themeGrid';
 import { runThemePreview } from './ui/previewFlow';
 import { createSoloConfigFlow } from './ui/soloConfigFlow';
 import { createMatchmakingFlow } from './ui/matchmakingFlow';
+import { createPrivateRoomFlow } from './ui/privateRoomFlow';
 import { client } from './net/client';
 
 function requireEl<T extends HTMLElement>(id: string): T {
@@ -30,6 +31,7 @@ const helpBtn = requireEl<HTMLButtonElement>('help-btn');
 const muteBtn = requireEl<HTMLButtonElement>('mute-btn');
 const themeNameBadge = requireEl<HTMLElement>('theme-name-badge');
 const changeThemeBtn = requireEl<HTMLButtonElement>('change-theme-btn');
+const privateRoomMount = requireEl<HTMLElement>('private-room-mount');
 
 const previewElements = {
   overlay: requireEl<HTMLElement>('preview-overlay'),
@@ -87,10 +89,15 @@ const soloConfigFlow = createSoloConfigFlow(
   },
 );
 
-// TODO(#17/#15/#14): wire real flow
-enterCodeBtn.addEventListener('click', () => console.log('[menu] enter code clicked (not implemented yet)'));
-// TODO(#17/#15/#14): wire real flow
-createRoomBtn.addEventListener('click', () => console.log('[menu] create room clicked (not implemented yet)'));
+const privateRoomFlow = createPrivateRoomFlow(
+  client,
+  { mount: privateRoomMount, themeNameBadge },
+  { hideMenu: () => showView(null), showMenu: () => showView('menu') },
+);
+
+enterCodeBtn.addEventListener('click', () => privateRoomFlow.openJoin());
+createRoomBtn.addEventListener('click', () => privateRoomFlow.openCreate());
+
 createMatchmakingFlow(
   { findMatchBtn, statusMount: matchmakingStatusEl, themeNameBadge },
   client,

@@ -761,3 +761,57 @@ body {
   .panel { grid-template-columns: repeat(3, 1fr); max-height: 40vh; }
   .theme-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ---------- private room flow (#15: create/join, code share, match-N-of-5 transition) ---------- */
+
+.private-room-modal { text-align: center; }
+.private-room-modal .solo-config-group { text-align: left; }
+.private-room-modal .private-room-join-row { text-align: left; }
+
+.private-room-code-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 18px 0;
+}
+.private-room-code {
+  font-family: var(--pixel);
+  font-size: 32px;
+  letter-spacing: 4px;
+  color: var(--yellow);
+  text-shadow: 3px 3px 0 var(--ink);
+}
+
+.private-room-status {
+  font-size: 12px;
+  color: var(--fg-dim);
+  margin: 10px 0;
+}
+
+.private-room-join-row {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0;
+}
+.private-room-code-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--pixel);
+  font-size: 14px;
+  letter-spacing: 2px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  color: var(--fg);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+}
+
+.private-room-error {
+  color: var(--red);
+  font-size: 12px;
+  margin: 0 0 10px;
+}
+.private-room-error.hidden { display: none; }
+
+.private-room-transition h2 { color: var(--green); }

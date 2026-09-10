@@ -110,6 +110,7 @@ export class MultiplayerMatch {
   private readonly timerEl = requireEl<HTMLElement>('match-timer-hud');
   private readonly timerWarningEl = requireEl<HTMLElement>('match-timer-warning');
   private readonly quitBtn = requireEl<HTMLButtonElement>('match-quit-btn');
+  private readonly splitView = requireEl<HTMLElement>('split-view');
   private readonly resultModal = requireEl<HTMLElement>('result-modal');
   private readonly mpScoreboard = requireEl<HTMLElement>('mp-scoreboard');
   private readonly soloResultEls = [
@@ -214,6 +215,7 @@ export class MultiplayerMatch {
     });
 
     this.quitBtn.classList.remove('hidden');
+    this.splitView.classList.remove('hidden');
   }
 
   /** Pads the tracked local color map with placeholders for any
@@ -261,6 +263,7 @@ export class MultiplayerMatch {
 
     this.disarmQuit();
     this.quitBtn.classList.add('hidden');
+    this.splitView.classList.add('hidden');
   }
 
   /** First click on the Quit button arms it (shows "Confirm Quit?" and
