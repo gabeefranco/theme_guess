@@ -1,8 +1,11 @@
 import http from 'node:http';
 import { WebSocketServer } from 'ws';
 import { handleConnection } from './ws/connectionHandler.js';
+import { registerMatchmakingHandlers } from './matchmaking/queue.js';
 
 const PORT = process.env.PORT || 8080;
+
+registerMatchmakingHandlers();
 
 const server = http.createServer((req, res) => {
   if (req.url === '/health') {

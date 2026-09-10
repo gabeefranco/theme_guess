@@ -55,7 +55,7 @@ registerHandler('identify', (socket, message) => {
     sendError(socket, 'identify requires a string name');
     return;
   }
-  registerSocket(playerId, socket);
+  registerSocket(playerId, socket, name);
   socket.send(JSON.stringify({ type: 'identify:ack' }));
 });
 
