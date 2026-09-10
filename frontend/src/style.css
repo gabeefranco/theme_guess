@@ -662,6 +662,52 @@ body {
 }
 .toggle-btn.active { background: var(--panel-3); color: var(--fg); }
 
+/* ---------- multiplayer scoreboard (#12: two-column round reveal) ---------- */
+
+.mp-scoreboard.hidden { display: none; }
+
+.mp-winner-banner {
+  text-align: center;
+  font-family: var(--pixel);
+  font-size: 13px;
+  padding: 10px;
+  margin-bottom: 14px;
+  border: 3px solid var(--ink);
+  background: var(--panel-2);
+  color: var(--fg);
+}
+.mp-winner-banner.mp-winner-you { background: var(--green); color: var(--ink); }
+.mp-winner-banner.mp-winner-opponent { background: var(--red); color: var(--ink); }
+.mp-winner-banner.mp-draw { background: var(--yellow); color: var(--ink); }
+
+.mp-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.mp-column {
+  border: 3px solid var(--ink);
+  background: var(--panel-2);
+  padding: 12px 10px;
+  min-width: 0;
+}
+.mp-column-label {
+  text-align: center;
+  font-family: var(--pixel);
+  font-size: 10px;
+  color: var(--fg-dim);
+  margin-bottom: 8px;
+  letter-spacing: .5px;
+}
+.mp-column .score-meter-number { font-size: 20px; }
+.mp-column .score-meter-track { gap: 2px; }
+.mp-column .meter-block { width: 8px; height: 14px; }
+.mp-column .breakdown { max-height: 200px; }
+
+@media (max-width: 640px) {
+  .mp-columns { grid-template-columns: 1fr; }
+}
+
 .modal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .modal-actions .btn { flex: 1 1 auto; min-width: 110px; }
 

@@ -10,9 +10,12 @@
  * deadline (or omit it with one). `timeMode` doubles as the mode-badge
  * source and the progress bar's total duration (in minutes). `'none'` is
  * solo's infinite-time mode: no deadline, so no progress bar — the clock
- * counts elapsed time up from when `startCountdown` was called instead. */
+ * counts elapsed time up from when `startCountdown` was called instead.
+ * `onExpire`, on the countdown variant only, fires exactly once when
+ * `endsAt` passes — multiplayer uses it to trigger the local player's
+ * `round:submit` without polling `startCountdown`'s return value. */
 export type TimerHudOptions =
-  | { timeMode: 1 | 2; endsAt: number }
+  | { timeMode: 1 | 2; endsAt: number; onExpire?: () => void }
   | { timeMode: 'none'; endsAt?: null };
 
 const TIME_MODE_LABEL: Record<1 | 2 | 'none', string> = {
@@ -87,6 +90,7 @@ export function startCountdown(container: HTMLElement, options: TimerHudOptions)
     }
     if (remaining <= 0) {
       stop();
+      options.onExpire?.();
       return;
     }
     rafId = requestAnimationFrame(tick);

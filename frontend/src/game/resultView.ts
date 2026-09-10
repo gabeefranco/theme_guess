@@ -1,6 +1,6 @@
 import { easeOutCubic } from '../engine/colorUtils';
 import { METER_BLOCKS } from './layoutConstants';
-import type { MatchResultRow } from '../types';
+import type { MatchResult, MatchResultRow } from '../types';
 
 export function barColor(sim: number): string {
   if (sim < 40) return '#ff5555';
@@ -70,4 +70,46 @@ export function renderScoreMeter(meterEl: HTMLElement, numberEl: HTMLElement, ov
     if (p < 1) requestAnimationFrame(animate);
   };
   requestAnimationFrame(animate);
+}
+
+/** DOM refs for one side (you/opponent) of the two-column multiplayer
+ * scoreboard — mirrors the single-player score-meter + breakdown pair. */
+export interface MultiplayerResultColumnElements {
+  number: HTMLElement;
+  meter: HTMLElement;
+  breakdown: HTMLElement;
+}
+
+export interface MultiplayerResultElements {
+  banner: HTMLElement;
+  you: MultiplayerResultColumnElements;
+  opponent: MultiplayerResultColumnElements;
+}
+
+const WINNER_BANNER_CLASSES = ['mp-winner-you', 'mp-winner-opponent', 'mp-draw'];
+
+/** Renders both players' `MatchResult`s side by side into the two-column
+ * scoreboard, plus a winner banner: higher `overall` wins; an equal
+ * `overall` is an explicit draw, with no other tie-break. */
+export function renderMultiplayerResult(
+  elements: MultiplayerResultElements,
+  you: MatchResult,
+  opponent: MatchResult,
+): void {
+  renderScoreMeter(elements.you.meter, elements.you.number, you.overall);
+  renderBreakdown(elements.you.breakdown, you.rows);
+  renderScoreMeter(elements.opponent.meter, elements.opponent.number, opponent.overall);
+  renderBreakdown(elements.opponent.breakdown, opponent.rows);
+
+  elements.banner.classList.remove(...WINNER_BANNER_CLASSES);
+  if (you.overall === opponent.overall) {
+    elements.banner.textContent = "🤝 IT'S A DRAW!";
+    elements.banner.classList.add('mp-draw');
+  } else if (you.overall > opponent.overall) {
+    elements.banner.textContent = '🏆 YOU WIN!';
+    elements.banner.classList.add('mp-winner-you');
+  } else {
+    elements.banner.textContent = '💀 OPPONENT WINS';
+    elements.banner.classList.add('mp-winner-opponent');
+  }
 }

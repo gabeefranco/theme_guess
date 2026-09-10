@@ -156,7 +156,7 @@
   <div id="result-modal" class="modal-overlay hidden">
     <div class="modal result-modal">
       <h2>MATCH RESULT</h2>
-      <div class="score-meter-wrap">
+      <div class="score-meter-wrap" id="solo-score-meter-wrap">
         <div class="score-meter-number" id="score-number">0%</div>
         <div class="score-meter-track" id="score-meter"></div>
       </div>
@@ -165,6 +165,27 @@
       <div class="compare-toggle" id="compare-toggle">
         <button data-mode="yours" class="toggle-btn active">Your Palette</button>
         <button data-mode="original" class="toggle-btn">Original</button>
+      </div>
+      <div id="mp-scoreboard" class="mp-scoreboard hidden">
+        <div id="mp-winner-banner" class="mp-winner-banner"></div>
+        <div class="mp-columns">
+          <div class="mp-column">
+            <div class="mp-column-label">You</div>
+            <div class="score-meter-wrap">
+              <div class="score-meter-number" id="mp-you-number">0%</div>
+              <div class="score-meter-track" id="mp-you-meter"></div>
+            </div>
+            <div class="breakdown" id="mp-you-breakdown"></div>
+          </div>
+          <div class="mp-column">
+            <div class="mp-column-label">Opponent</div>
+            <div class="score-meter-wrap">
+              <div class="score-meter-number" id="mp-opponent-number">0%</div>
+              <div class="score-meter-track" id="mp-opponent-meter"></div>
+            </div>
+            <div class="breakdown" id="mp-opponent-breakdown"></div>
+          </div>
+        </div>
       </div>
       <div class="modal-actions">
         <button id="close-result-btn" class="btn ghost">Keep Comparing</button>

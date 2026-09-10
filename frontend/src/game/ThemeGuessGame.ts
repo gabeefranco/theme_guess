@@ -59,7 +59,16 @@ export class ThemeGuessGame {
   private height = 0;
   private categories!: CategoryStateMap;
 
-  constructor(themeId: ThemeId, snippetIndex: number = pickRandomSnippetIndex()) {
+  /** `onCategoryAssigned`, when provided, fires at the end of every
+   * `applyColor` with the category and hex just assigned — multiplayer
+   * uses it to relay a bare `round:progress` and to track the local
+   * player's running color map for `round:submit`, without this class
+   * needing to know anything about the network. */
+  constructor(
+    themeId: ThemeId,
+    snippetIndex: number = pickRandomSnippetIndex(),
+    private readonly onCategoryAssigned?: (id: CategoryId, hex: string) => void,
+  ) {
     this.themeId = themeId;
     this.snippetIndex = snippetIndex;
     this.build();
@@ -311,6 +320,7 @@ export class ThemeGuessGame {
     for (const c of this.tokenCentersFor(id, 10)) this.fx.spawnBurst(c.x, c.y, hex, 10);
     sound.playApply();
     this.updateProgress();
+    this.onCategoryAssigned?.(id, hex);
   }
 
   private tokenCentersFor(id: CategoryId, max: number): { x: number; y: number }[] {
