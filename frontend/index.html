@@ -18,6 +18,8 @@
         </span>
         <h1>Theme<span>Guess</span></h1>
       </div>
+
+      <div id="solo-timer-mount"></div>
       <button id="help-btn" class="theme-badge" title="Change theme / how to play">
         🎮 <strong id="theme-name-badge">Gruvbox Dark</strong>
       </button>
@@ -68,8 +70,46 @@
         <section id="menu-solo" class="menu-section" aria-label="Solo">
           <h3>🧑‍💻 SOLO</h3>
           <p class="menu-section-desc">Click any word to color it, then reveal how close your palette lands to the real theme.</p>
-          <p class="pick-theme-label">▼ PICK A THEME ▼</p>
-          <div id="theme-grid" class="theme-grid"></div>
+
+          <div class="solo-config-group">
+            <p class="solo-config-label">⏱ TIME</p>
+            <div class="solo-radio-row">
+              <label class="solo-radio"><input type="radio" name="solo-time-mode" value="1min" checked />1 MIN</label>
+              <label class="solo-radio"><input type="radio" name="solo-time-mode" value="2min" />2 MIN</label>
+              <label class="solo-radio"><input type="radio" name="solo-time-mode" value="none" />NO LIMIT</label>
+            </div>
+          </div>
+
+          <div class="solo-config-group">
+            <p class="solo-config-label">🎨 THEME</p>
+            <div class="solo-radio-row">
+              <label class="solo-radio"><input type="radio" name="solo-theme-mode" value="random" checked />RANDOM</label>
+              <label class="solo-radio"><input type="radio" name="solo-theme-mode" value="choose" />CHOOSE</label>
+            </div>
+          </div>
+
+          <div id="solo-theme-picker" class="hidden">
+            <p class="pick-theme-label">▼ PICK A THEME ▼</p>
+            <div id="theme-grid" class="theme-grid"></div>
+          </div>
+
+          <div class="solo-config-group">
+            <p class="solo-config-label">🤖 OPPONENT</p>
+            <div class="solo-radio-row">
+              <label class="solo-radio"><input type="radio" name="solo-opponent-mode" value="alone" checked />ALONE</label>
+              <label class="solo-radio"><input type="radio" name="solo-opponent-mode" value="bot" />VS BOT</label>
+            </div>
+          </div>
+
+          <div id="solo-bot-difficulty" class="hidden">
+            <p class="solo-config-label">DIFFICULTY</p>
+            <div class="solo-radio-row">
+              <label class="solo-radio"><input type="radio" name="solo-bot-difficulty" value="easy" checked />EASY</label>
+              <label class="solo-radio"><input type="radio" name="solo-bot-difficulty" value="medium" />MEDIUM</label>
+              <label class="solo-radio"><input type="radio" name="solo-bot-difficulty" value="hard" />HARD</label>
+            </div>
+          </div>
+
           <div class="menu-section-actions">
             <button id="start-btn" class="btn primary">▶ PLAY</button>
           </div>

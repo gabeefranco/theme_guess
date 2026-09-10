@@ -4,7 +4,7 @@ import { THEMES } from './data/themes';
 import { sound } from './engine/sound';
 import { createThemeGrid } from './ui/themeGrid';
 import { runThemePreview } from './ui/previewFlow';
-import type { ThemeId } from './types';
+import { createSoloConfigFlow } from './ui/soloConfigFlow';
 
 function requireEl<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -15,6 +15,10 @@ function requireEl<T extends HTMLElement>(id: string): T {
 const menuModal = requireEl<HTMLElement>('intro-modal');
 const resultModal = requireEl<HTMLElement>('result-modal');
 const themeGridEl = requireEl<HTMLElement>('theme-grid');
+const menuSoloSection = requireEl<HTMLElement>('menu-solo');
+const soloThemePickerWrap = requireEl<HTMLElement>('solo-theme-picker');
+const soloBotDifficultyWrap = requireEl<HTMLElement>('solo-bot-difficulty');
+const soloTimerMount = requireEl<HTMLElement>('solo-timer-mount');
 const startBtn = requireEl<HTMLButtonElement>('start-btn');
 const enterCodeBtn = requireEl<HTMLButtonElement>('enter-code-btn');
 const createRoomBtn = requireEl<HTMLButtonElement>('create-room-btn');
@@ -51,21 +55,30 @@ let game: ThemeGuessGame | null = null;
 
 const themeGrid = createThemeGrid(themeGridEl, 'gruvbox', () => sound.playOpen());
 
-// Solo is the only flow this ticket wires end-to-end. Ticket #17 will
-// replace this direct "pick a theme, hit play" shortcut with a fuller solo
-// config flow inside #menu-solo; keep it working in the meantime.
-function playSolo(): void {
-  const themeId: ThemeId = themeGrid.selected;
-  showView(null);
-  runThemePreview(previewElements, themeId, () => {
-    if (game) game.setTheme(themeId);
-    else game = new ThemeGuessGame(themeId);
-    themeNameBadge.textContent = THEMES[themeId].name;
-    sound.playApply();
-  }, () => sound.playOpen());
-}
-
-startBtn.addEventListener('click', playSolo);
+const soloConfigFlow = createSoloConfigFlow(
+  {
+    section: menuSoloSection,
+    themePickerWrap: soloThemePickerWrap,
+    botDifficultyWrap: soloBotDifficultyWrap,
+    playBtn: startBtn,
+    timerMount: soloTimerMount,
+  },
+  themeGrid,
+  (config) => {
+    showView(null);
+    runThemePreview(previewElements, config.themeId, () => {
+      if (game) {
+        game.setTheme(config.themeId);
+        game.setSnippet(config.snippetIndex);
+      } else {
+        game = new ThemeGuessGame(config.themeId, config.snippetIndex);
+      }
+      themeNameBadge.textContent = THEMES[config.themeId].name;
+      sound.playApply();
+      soloConfigFlow.startTimer(config.timeMode);
+    }, () => sound.playOpen());
+  },
+);
 
 // TODO(#17/#15/#14): wire real flow
 enterCodeBtn.addEventListener('click', () => console.log('[menu] enter code clicked (not implemented yet)'));
