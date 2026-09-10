@@ -1,5 +1,6 @@
 import { tokenize } from '../engine/tokenizer';
-import { CATEGORY_META, THEMES, CODE_SAMPLE } from '../data/themes';
+import { CATEGORY_META, THEMES } from '../data/themes';
+import { SNIPPETS, pickRandomSnippetIndex } from '../data/snippets';
 import { easeOutCubic, hexToRgb, isValidHex, lerpRgb, rgbToHex } from '../engine/colorUtils';
 import { ParticleSystem } from '../engine/particles';
 import { sound } from '../engine/sound';
@@ -44,6 +45,7 @@ export class ThemeGuessGame {
   private readonly fx = new ParticleSystem();
 
   private themeId: ThemeId;
+  private snippetIndex: number;
   private activeCategory: CategoryId | null = null;
   private compareMode: CompareMode = 'yours';
   private lastTime = performance.now();
@@ -57,8 +59,9 @@ export class ThemeGuessGame {
   private height = 0;
   private categories!: CategoryStateMap;
 
-  constructor(themeId: ThemeId) {
+  constructor(themeId: ThemeId, snippetIndex: number = pickRandomSnippetIndex()) {
     this.themeId = themeId;
+    this.snippetIndex = snippetIndex;
     this.build();
     this.bindEvents();
     requestAnimationFrame((t) => this.loop(t));
@@ -67,7 +70,7 @@ export class ThemeGuessGame {
   // ---------- setup ----------
 
   private build(): void {
-    this.tokens = tokenize(CODE_SAMPLE);
+    this.tokens = tokenize(SNIPPETS[this.snippetIndex]);
 
     this.lineCount = 1;
     this.maxCols = 0;
@@ -150,6 +153,18 @@ export class ThemeGuessGame {
     this.resultModal.classList.add('hidden');
     this.renderPanel();
     this.updateProgress();
+    this.fx.clear();
+  }
+
+  /** Forces a specific snippet (by stable `SNIPPETS` index) and rebuilds
+   * the round around it — used by multiplayer to keep both players on
+   * the same source file instead of each picking their own at random. */
+  setSnippet(index: number): void {
+    this.snippetIndex = index;
+    this.build();
+    this.activeCategory = null;
+    this.popover.classList.add('hidden');
+    this.resultModal.classList.add('hidden');
     this.fx.clear();
   }
 

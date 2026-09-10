@@ -74,41 +74,6 @@ export const THEMES: Themes = {
   },
 };
 
-export const CODE_SAMPLE = `// Theme Guess demo file
-class ColorMixer {
-  constructor(name, hue) {
-    this.name = name;
-    this.hue = hue;
-    this.locked = false;
-  }
-
-  blend(other, amount = 0.5) {
-    const mixed = this.hue * (1 - amount) + other.hue * amount;
-    return new ColorMixer(\`\${this.name}+\${other.name}\`, mixed);
-  }
-}
-
-function buildPalette(seed) {
-  const colors = [];
-  for (let i = 0; i < 8; i++) {
-    const hue = (seed + i * 45) % 360;
-    colors.push(new ColorMixer(\`swatch-\${i}\`, hue));
-  }
-  return colors;
-}
-
-const palette = buildPalette(20);
-const primary = palette[0];
-const accent = palette[palette.length - 1];
-
-if (accent.hue > 180 && !primary.locked) {
-  primary.locked = true;
-  console.log(\`Locked \${primary.name} at hue \${primary.hue}\`);
-}
-
-export default palette;
-`;
-
 // A short, different snippet used for the pre-game theme reveal. It's
 // deliberately missing some token kinds the real game asks about (no
 // numeric literals, no true/false/null/undefined/this) so the preview
