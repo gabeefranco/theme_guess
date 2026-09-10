@@ -47,15 +47,15 @@ that way until there's an actual reason to add one.
 
 ## Git
 
-- Trunk is `master`; keep it green (typechecks, builds, game loads).
+- Trunk is `main`; keep it green (typechecks, builds, game loads).
 - One short-lived branch per change, prefixed by intent:
   `feat/…`, `fix/…`, `refactor/…`, `chore/…`, `docs/…`.
 - Commit messages follow Conventional Commits:
   `type(scope): summary` — e.g. `refactor(frontend): split game into modules`,
   `feat(backend): add matchmaking queue`. Scope is usually `frontend`,
   `backend`, or a package-relative area (`engine`, `ui`, `ws`, ...).
-- Squash-merge feature branches into `master`; delete the branch after.
-  Keep history readable — no "wip", "fix typo", "asdf" commits on `master`.
+- Squash-merge feature branches into `main`; delete the branch after.
+  Keep history readable — no "wip", "fix typo", "asdf" commits on `main`.
 - Frontend and backend evolve independently; a PR touching only one
   should only bump/discuss that package's version and deps.
 
