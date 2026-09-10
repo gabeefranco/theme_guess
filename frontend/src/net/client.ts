@@ -103,3 +103,11 @@ export class GameClient {
     for (const cb of set) cb(msg);
   }
 }
+
+/** Single shared connection for the whole app — every UI flow that
+ * needs to talk to the server (matchmaking, private rooms, ...) imports
+ * this instead of constructing its own `GameClient`, so there is ever
+ * only one socket/identify handshake per page load. Connects eagerly as
+ * soon as this module is first imported. */
+export const client = new GameClient();
+client.connect();

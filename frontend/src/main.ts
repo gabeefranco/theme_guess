@@ -5,6 +5,8 @@ import { sound } from './engine/sound';
 import { createThemeGrid } from './ui/themeGrid';
 import { runThemePreview } from './ui/previewFlow';
 import { createSoloConfigFlow } from './ui/soloConfigFlow';
+import { createMatchmakingFlow } from './ui/matchmakingFlow';
+import { client } from './net/client';
 
 function requireEl<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -23,6 +25,7 @@ const startBtn = requireEl<HTMLButtonElement>('start-btn');
 const enterCodeBtn = requireEl<HTMLButtonElement>('enter-code-btn');
 const createRoomBtn = requireEl<HTMLButtonElement>('create-room-btn');
 const findMatchBtn = requireEl<HTMLButtonElement>('find-match-btn');
+const matchmakingStatusEl = requireEl<HTMLElement>('matchmaking-status');
 const helpBtn = requireEl<HTMLButtonElement>('help-btn');
 const muteBtn = requireEl<HTMLButtonElement>('mute-btn');
 const themeNameBadge = requireEl<HTMLElement>('theme-name-badge');
@@ -88,8 +91,11 @@ const soloConfigFlow = createSoloConfigFlow(
 enterCodeBtn.addEventListener('click', () => console.log('[menu] enter code clicked (not implemented yet)'));
 // TODO(#17/#15/#14): wire real flow
 createRoomBtn.addEventListener('click', () => console.log('[menu] create room clicked (not implemented yet)'));
-// TODO(#17/#15/#14): wire real flow
-findMatchBtn.addEventListener('click', () => console.log('[menu] find match clicked (not implemented yet)'));
+createMatchmakingFlow(
+  { findMatchBtn, statusMount: matchmakingStatusEl, themeNameBadge },
+  client,
+  { showBoard: () => showView(null), showMenu: () => showView('menu') },
+);
 
 helpBtn.addEventListener('click', () => showView('menu'));
 changeThemeBtn.addEventListener('click', () => showView('menu'));

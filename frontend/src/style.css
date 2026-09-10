@@ -527,8 +527,8 @@ body {
 .menu-section-actions .btn { width: 100%; }
 
 /* Standalone matchmaking-ban countdown banner (frontend/src/ui/banBanner.ts).
- * Not mounted anywhere yet — ready for ticket #14 to mount into
- * #menu-matchmaking once queue:banned is wired up. */
+ * Mounted into #matchmaking-status by frontend/src/ui/matchmakingFlow.ts
+ * (#14) on a queue:banned reply. */
 .ban-banner {
   display: flex;
   align-items: center;
@@ -542,6 +542,24 @@ body {
   padding: 8px 10px;
 }
 .ban-banner-icon { flex-shrink: 0; }
+
+/* ---------- matchmaking flow status (#14: Find Match / searching / mode reveal) ---------- */
+
+#matchmaking-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+#matchmaking-status.hidden { display: none; }
+
+.matchmaking-status-text { margin: 0; font-size: 11px; color: var(--fg-dim); text-align: center; }
+.matchmaking-mode-found {
+  font-family: var(--pixel);
+  font-size: 12px;
+  color: var(--green);
+  animation: revealPulse 1.6s steps(2) infinite;
+}
 
 #menu-solo .theme-grid { margin-bottom: 0; }
 
