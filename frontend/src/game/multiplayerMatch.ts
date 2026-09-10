@@ -2,7 +2,10 @@
 // `ThemeGuessGame` + `OpponentView` + `timerHud` to a `GameClient`'s
 // round:start/round:progress/round:timeWarning/round:reveal messages
 // (see backend/src/PROTOCOL.md), and renders the two-column scoreboard
-// once the server reveals both players' submissions.
+// once the server reveals both players' submissions. Also owns the
+// in-match Quit button (`#match-quit-btn`): a confirm-armed click sends
+// `player:quit` and tears the local view down immediately, no server
+// reply required (see `quit()`'s doc for why).
 //
 // `ThemeGuessGame` has no network knowledge of its own: this module
 // supplies its `onCategoryAssigned` constructor callback (see
@@ -12,6 +15,12 @@
 // with `(id, hex) => match.handleLocalAssignment(id, hex)`, then call
 // `match.bindGame(game)` — so the callback closure can reference a
 // `MultiplayerMatch` instance that already exists.
+//
+// Nothing constructs a `MultiplayerMatch` yet (no #14/#15 host exists
+// in main.ts) — the third constructor arg, `onQuit`, is this class's
+// own hook for that future host to route back to the main menu once a
+// quit completes; it's exercised by this ticket's own quit-button
+// wiring so it's ready for #14/#15 to pass in.
 
 import { tokenize } from '../engine/tokenizer';
 import { rgbToHex } from '../engine/colorUtils';
@@ -36,6 +45,11 @@ function requireEl<T extends HTMLElement>(id: string): T {
 
 const FALLBACK_BG_HEX = rgbToHex(UNSET_BG_RGB);
 const FALLBACK_FG_HEX = rgbToHex(UNSET_FG_RGB);
+
+/** How long the Quit button stays "armed" (showing "Confirm Quit?")
+ * after a first click before reverting, so a stray double-tap can't
+ * quit a match by accident. */
+const QUIT_CONFIRM_WINDOW_MS = 3000;
 
 /** Every category defaulted to its "never painted" placeholder — used
  * both to pad a local submission that's missing categories at time-up,
@@ -95,6 +109,7 @@ export class MultiplayerMatch {
 
   private readonly timerEl = requireEl<HTMLElement>('match-timer-hud');
   private readonly timerWarningEl = requireEl<HTMLElement>('match-timer-warning');
+  private readonly quitBtn = requireEl<HTMLButtonElement>('match-quit-btn');
   private readonly resultModal = requireEl<HTMLElement>('result-modal');
   private readonly mpScoreboard = requireEl<HTMLElement>('mp-scoreboard');
   private readonly soloResultEls = [
@@ -127,7 +142,23 @@ export class MultiplayerMatch {
   private unsubWarning: (() => void) | null = null;
   private unsubReveal: (() => void) | null = null;
 
-  constructor(private readonly client: GameClient, private readonly opponentView: OpponentView) {}
+  private quitArmed = false;
+  private quitArmTimeoutId: number | null = null;
+
+  /** `onQuit`, if given, fires once the local player's quit actually
+   * goes through (button confirmed, `player:quit` sent, local view torn
+   * down) — the host of this `MultiplayerMatch` (main.ts or whatever
+   * mounts it; nothing does yet, see this class's header) uses it to
+   * route back to the main menu. Never fires for the remote end of a
+   * match ending (opponent quit, reveal, etc.) — this class doesn't
+   * listen for `room:playerLeft`/`room:closed` today. */
+  constructor(
+    private readonly client: GameClient,
+    private readonly opponentView: OpponentView,
+    private readonly onQuit?: () => void,
+  ) {
+    this.quitBtn.addEventListener('click', () => this.handleQuitClick());
+  }
 
   /** Binds the `ThemeGuessGame` this match drives via `setSnippet`/
    * `setTheme`. Must be constructed with its `onCategoryAssigned`
@@ -181,6 +212,8 @@ export class MultiplayerMatch {
       endsAt: payload.endsAt,
       onExpire: () => this.submitFinalColors(),
     });
+
+    this.quitBtn.classList.remove('hidden');
   }
 
   /** Pads the tracked local color map with placeholders for any
@@ -225,5 +258,52 @@ export class MultiplayerMatch {
     this.unsubWarning = null;
     this.unsubReveal?.();
     this.unsubReveal = null;
+
+    this.disarmQuit();
+    this.quitBtn.classList.add('hidden');
+  }
+
+  /** First click on the Quit button arms it (shows "Confirm Quit?" and
+   * reverts on its own after `QUIT_CONFIRM_WINDOW_MS`); a second click
+   * while armed actually quits. Requires two intentional clicks so a
+   * misclick can't forfeit a match by accident. */
+  private handleQuitClick(): void {
+    if (this.quitArmed) {
+      this.quit();
+      return;
+    }
+    this.armQuit();
+  }
+
+  private armQuit(): void {
+    this.quitArmed = true;
+    this.quitBtn.textContent = 'Confirm Quit?';
+    this.quitBtn.classList.add('armed');
+    this.quitArmTimeoutId = window.setTimeout(() => this.disarmQuit(), QUIT_CONFIRM_WINDOW_MS);
+  }
+
+  private disarmQuit(): void {
+    this.quitArmed = false;
+    this.quitBtn.textContent = '✕ Quit';
+    this.quitBtn.classList.remove('armed');
+    if (this.quitArmTimeoutId !== null) {
+      window.clearTimeout(this.quitArmTimeoutId);
+      this.quitArmTimeoutId = null;
+    }
+  }
+
+  /** Confirmed quit: sends `player:quit` (see PROTOCOL.md "Quit" — the
+   * server infers which match/room from the sending socket, no payload
+   * needed), then immediately tears down the local match view exactly
+   * as `handleReveal` does, without waiting for any server reply — a
+   * quit has no round:reveal to wait for. Note there is no ban-info
+   * reply to react to here: see `ui/banBanner.ts`'s header comment for
+   * why a matchmaking ban is only ever learned later, via `queue:banned`
+   * on a subsequent `queue:join`. */
+  private quit(): void {
+    this.client.send({ type: 'player:quit' });
+    this.teardownRound();
+    this.opponentView.reset();
+    this.onQuit?.();
   }
 }

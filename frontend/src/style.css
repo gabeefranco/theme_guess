@@ -73,6 +73,8 @@ body {
 .btn.reveal { background: linear-gradient(90deg, var(--yellow), var(--orange)); }
 .btn.reveal:not(:disabled) { animation: revealPulse 1.6s steps(2) infinite; }
 .btn.big { padding: 16px 22px; font-size: 13px; }
+.btn.danger { background: var(--red); color: var(--ink); }
+.btn.danger.armed { background: var(--yellow); }
 @keyframes revealPulse {
   0%, 100% { box-shadow: var(--shadow-off) var(--shadow-off) 0 var(--ink), 0 0 0 0 rgba(255,210,63,.6); }
   50% { box-shadow: var(--shadow-off) var(--shadow-off) 0 var(--ink), 0 0 0 6px rgba(255,210,63,0); }
@@ -172,9 +174,11 @@ body {
 /* ---------- match timer HUD (#11: countdown + time warning) ---------- */
 /* A second, visually distinct progress bar from .progress-wrap above —
  * that one tracks "N/12 token kinds themed"; this one tracks time
- * remaining in the round. Built by game/timerHud.ts into the empty
- * #match-timer-hud / #match-timer-warning mounts in index.html. Hidden
- * by default: not mounted into any live view until a later ticket. */
+ * remaining in the round, alongside the quit button. Built by
+ * game/timerHud.ts / game/multiplayerMatch.ts into the empty
+ * #match-timer-hud / #match-quit-btn / #match-timer-warning mounts in
+ * index.html. Hidden by default: not mounted into any live view until a
+ * later ticket. */
 .match-timer-hud {
   display: flex;
   align-items: center;
@@ -188,6 +192,8 @@ body {
   box-shadow: 3px 3px 0 var(--ink);
 }
 #match-timer-hud.hidden { display: none; }
+.match-hud-row { display: flex; align-items: center; gap: 10px; }
+#match-quit-btn.hidden { display: none; }
 .match-timer-badge { color: var(--yellow); flex-shrink: 0; white-space: nowrap; }
 .match-timer-track {
   flex: 1;
@@ -519,6 +525,23 @@ body {
 
 .menu-section-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
 .menu-section-actions .btn { width: 100%; }
+
+/* Standalone matchmaking-ban countdown banner (frontend/src/ui/banBanner.ts).
+ * Not mounted anywhere yet — ready for ticket #14 to mount into
+ * #menu-matchmaking once queue:banned is wired up. */
+.ban-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--pixel);
+  font-size: 10px;
+  color: var(--ink);
+  background: var(--orange);
+  border: 3px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  padding: 8px 10px;
+}
+.ban-banner-icon { flex-shrink: 0; }
 
 #menu-solo .theme-grid { margin-bottom: 0; }
 
