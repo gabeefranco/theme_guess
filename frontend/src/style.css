@@ -169,6 +169,61 @@ body {
 }
 #progress-label { font-family: var(--pixel); font-size: 9px; color: var(--fg-dim); white-space: nowrap; }
 
+/* ---------- match timer HUD (#11: countdown + time warning) ---------- */
+/* A second, visually distinct progress bar from .progress-wrap above —
+ * that one tracks "N/12 token kinds themed"; this one tracks time
+ * remaining in the round. Built by game/timerHud.ts into the empty
+ * #match-timer-hud / #match-timer-warning mounts in index.html. Hidden
+ * by default: not mounted into any live view until a later ticket. */
+.match-timer-hud {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--pixel);
+  font-size: 9px;
+  color: var(--fg);
+  background: var(--panel-2);
+  border: 3px solid var(--ink);
+  padding: 8px 12px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+#match-timer-hud.hidden { display: none; }
+.match-timer-badge { color: var(--yellow); flex-shrink: 0; white-space: nowrap; }
+.match-timer-track {
+  flex: 1;
+  min-width: 80px;
+  height: 12px;
+  background: var(--panel-3);
+  border: 2px solid var(--ink);
+  overflow: hidden;
+}
+.match-timer-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--cyan);
+  transition: width .3s linear, background-color .3s linear;
+}
+.match-timer-clock { flex-shrink: 0; white-space: nowrap; color: var(--fg-dim); }
+.match-timer-hud--elapsed .match-timer-clock { color: var(--fg); }
+
+.match-timer-warning-toast {
+  position: fixed;
+  top: 68px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 80;
+  pointer-events: none;
+  font-family: var(--pixel);
+  font-size: 10px;
+  color: var(--ink);
+  background: var(--yellow);
+  border: 3px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  padding: 8px 14px;
+  animation: modalIn .2s steps(4);
+}
+#match-timer-warning.hidden { display: none; }
+
 /* ---------- board layout ---------- */
 
 .board {
