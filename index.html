@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Theme Guess — Pixel Palette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-swatches">
+          <i style="background:#fb4934"></i><i style="background:#b8bb26"></i>
+          <i style="background:#fabd2f"></i><i style="background:#83a598"></i>
+        </span>
+        <h1>Theme<span>Guess</span></h1>
+      </div>
+      <button id="help-btn" class="theme-badge" title="Change theme / how to play">
+        🎮 <strong id="theme-name-badge">Gruvbox Dark</strong>
+      </button>
+      <div class="topbar-actions">
+        <button id="mute-btn" class="icon-btn" title="Mute sound" aria-label="Mute sound">🔊</button>
+      </div>
+    </header>
+
+    <div class="progress-wrap">
+      <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+      <span id="progress-label">0 / 12 TOKEN KINDS THEMED</span>
+    </div>
+
+    <main class="board">
+      <div class="canvas-wrap">
+        <canvas id="code-canvas"></canvas>
+
+        <div id="picker-popover" class="popover hidden">
+          <div class="popover-arrow"></div>
+          <div class="popover-label" id="popover-label">Keyword</div>
+          <div class="popover-row">
+            <input type="color" id="popover-color" value="#ffffff" />
+            <input type="text" id="popover-hex" maxlength="7" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="popover-actions">
+            <button id="popover-cancel" class="btn ghost small">Cancel</button>
+            <button id="popover-apply" class="btn primary small">Apply</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="panel-col" aria-label="Token kinds">
+        <div id="category-panel" class="panel"></div>
+        <div class="panel-actions">
+          <button id="reset-btn" class="btn ghost">↺ RESET COLORS</button>
+          <button id="reveal-btn" class="btn reveal" disabled>REVEAL MATCH ✨</button>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div id="intro-modal" class="modal-overlay">
+    <div class="modal">
+      <h2>🕹️ THEME GUESS</h2>
+      <p>A snippet of code is hiding a classic color theme.</p>
+      <ol>
+        <li>Click any word in the code — every token of that <em>kind</em> lights up together.</li>
+        <li>Pick a color for that kind. Watch it paint everywhere at once.</li>
+        <li>Repeat until all 12 kinds have a color, including the background.</li>
+        <li>Hit <strong>REVEAL MATCH</strong> to see how close your palette lands to the real thing.</li>
+      </ol>
+      <p class="pick-theme-label">▼ PICK YOUR TARGET THEME ▼</p>
+      <div id="theme-grid" class="theme-grid"></div>
+      <button id="start-btn" class="btn primary big">▶ PRESS START</button>
+    </div>
+  </div>
+
+  <div id="result-modal" class="modal-overlay hidden">
+    <div class="modal result-modal">
+      <h2>MATCH RESULT</h2>
+      <div class="score-meter-wrap">
+        <div class="score-meter-number" id="score-number">0%</div>
+        <div class="score-meter-track" id="score-meter"></div>
+      </div>
+      <div id="score-verdict" class="verdict"></div>
+      <div id="score-breakdown" class="breakdown"></div>
+      <div class="compare-toggle" id="compare-toggle">
+        <button data-mode="yours" class="toggle-btn active">Your Palette</button>
+        <button data-mode="original" class="toggle-btn">Original</button>
+      </div>
+      <div class="modal-actions">
+        <button id="close-result-btn" class="btn ghost">Keep Comparing</button>
+        <button id="change-theme-btn" class="btn ghost">🔄 Change Theme</button>
+        <button id="play-again-btn" class="btn primary">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="preview-overlay" class="modal-overlay hidden">
+    <div class="preview-box">
+      <div class="preview-countdown" id="preview-countdown">5</div>
+      <div class="preview-caption" id="preview-caption">MEMORIZE THE VIBE...</div>
+      <div class="preview-canvas-wrap">
+        <canvas id="preview-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
