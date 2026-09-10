@@ -2,6 +2,7 @@ import http from 'node:http';
 import { WebSocketServer } from 'ws';
 import { handleConnection } from './ws/connectionHandler.js';
 import { registerMatchmakingHandlers } from './matchmaking/queue.js';
+import { registerRoomHandlers } from './rooms/room.js';
 
 const PORT = process.env.PORT || 8080;
 
@@ -21,6 +22,8 @@ const server = http.createServer((req, res) => {
 // handshake, so one process serves both plain HTTP and `ws://`.
 const wss = new WebSocketServer({ server });
 wss.on('connection', handleConnection);
+
+registerRoomHandlers();
 
 server.listen(PORT, () => {
   console.log(`Matchmaking server listening on :${PORT}`);

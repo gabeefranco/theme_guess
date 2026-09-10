@@ -1,5 +1,6 @@
 # rooms/
 
-Reserved for game-session/room state: tracking which sockets belong to a
-match, broadcasting round state, and cleaning up on disconnect. Not
-implemented yet.
+Numeric-code private rooms: `room.js` tracks live rooms (code -> room
+state), handles `room:create`/`room:join`, and replays
+`game/session.js` matches up to a 5-match cap unless a player quits.
+Implemented; theme voting for `themeMode: 'chosen'` rooms is ticket #7.
