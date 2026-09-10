@@ -1,7 +1,8 @@
 import { THEMES } from '../data/themes';
 import { pickRandomSnippetIndex } from '../data/snippets';
 import type { BotDifficulty, BotTimeMode } from '../engine/bot';
-import type { ThemeId } from '../types';
+import { BotMatch } from '../game/botMatch';
+import type { CategoryId, ThemeId } from '../types';
 import type { ThemeGrid } from './themeGrid';
 
 /** Reuses `engine/bot`'s time-mode vocabulary so a solo config can be
@@ -37,8 +38,16 @@ export interface SoloConfigFlowElements {
 export interface SoloConfigFlow {
   /** Starts the inline countdown/elapsed-time HUD for a just-started
    * round. Call once the round is actually live (e.g. after the theme
-   * preview finishes), not at Play-click time. */
+   * preview finishes), not at Play-click time. Also the "round is live"
+   * signal this module uses internally to start (or, for 'Alone',
+   * tear down) the bot opponent's split-view pane — see `handleLocalAssignment`. */
   startTimer(mode: SoloTimeMode): void;
+  /** `ThemeGuessGame`'s `onCategoryAssigned` callback target. Wire this
+   * once, at the game's first construction (see `MultiplayerMatch`'s
+   * two-phase-init doc for the pattern this mirrors) — it's a stable
+   * dispatch that forwards to whichever bot round `startTimer` most
+   * recently started, and is a no-op for 'Alone' rounds. */
+  handleLocalAssignment(id: CategoryId, hex: string): void;
 }
 
 const TIME_MODE_DEADLINE_MS: Record<Exclude<SoloTimeMode, 'none'>, number> = {
@@ -126,7 +135,9 @@ export function createSoloConfigFlow(
   const opponentInputs = radios(elements.section, 'solo-opponent-mode');
   const timeModeInputs = radios(elements.section, 'solo-time-mode');
   const botDifficultyInputs = radios(elements.section, 'solo-bot-difficulty');
-  const startTimer = createTimerHud(elements.timerMount);
+  const startTimerHud = createTimerHud(elements.timerMount);
+  const botMatch = new BotMatch();
+  let lastConfig: SoloConfig | null = null;
 
   function syncThemePicker(): void {
     const mode = checkedValue<SoloThemeMode>(themeModeInputs, 'random');
@@ -154,17 +165,32 @@ export function createSoloConfigFlow(
       ? themeGrid.selected
       : themeIds[Math.floor(Math.random() * themeIds.length)];
 
-    // TODO(#19): wire bot engine — opponent/botDifficulty are captured
-    // and handed off here, but nothing yet drives a live bot opponent
-    // from them; "vs Bot" currently plays identically to "Alone".
-    onStart({
+    lastConfig = {
       themeId,
       snippetIndex: pickRandomSnippetIndex(),
       timeMode,
       opponent,
       botDifficulty,
-    });
+    };
+    onStart(lastConfig);
   });
 
-  return { startTimer };
+  return {
+    startTimer(mode) {
+      startTimerHud(mode);
+      if (lastConfig?.opponent === 'bot') {
+        botMatch.start({
+          themeId: lastConfig.themeId,
+          snippetIndex: lastConfig.snippetIndex,
+          timeMode: lastConfig.timeMode,
+          difficulty: lastConfig.botDifficulty,
+        });
+      } else {
+        botMatch.stop();
+      }
+    },
+    handleLocalAssignment(id, hex) {
+      botMatch.handleLocalAssignment(id, hex);
+    },
+  };
 }

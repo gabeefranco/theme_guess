@@ -71,7 +71,11 @@ const soloConfigFlow = createSoloConfigFlow(
         game.setTheme(config.themeId);
         game.setSnippet(config.snippetIndex);
       } else {
-        game = new ThemeGuessGame(config.themeId, config.snippetIndex);
+        game = new ThemeGuessGame(
+          config.themeId,
+          config.snippetIndex,
+          (id, hex) => soloConfigFlow.handleLocalAssignment(id, hex),
+        );
       }
       themeNameBadge.textContent = THEMES[config.themeId].name;
       sound.playApply();
