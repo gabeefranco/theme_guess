@@ -9,7 +9,7 @@ export interface PreviewFlowElements {
   canvas: HTMLCanvasElement;
 }
 
-const COUNTDOWN_SECONDS = 5;
+const COUNTDOWN_SECONDS = 10;
 
 function bumpCountdown(el: HTMLElement, text: string): void {
   el.textContent = text;

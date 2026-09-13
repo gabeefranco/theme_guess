@@ -21,7 +21,7 @@ class Sound {
     return this.ctx;
   }
 
-  private tone(freq: number, dur = 0.12, type: OscillatorType = 'sine', gain = 0.05, when = 0): void {
+  private tone(freq: number, dur = 0.12, type: OscillatorType = 'sine', gain = 0.09, when = 0): void {
     if (this.muted) return;
     const ctx = this.ensure();
     if (!ctx) return;
@@ -40,12 +40,12 @@ class Sound {
   }
 
   playOpen(): void {
-    this.tone(660, 0.07, 'triangle', 0.035);
+    this.tone(660, 0.07, 'triangle', 0.065);
   }
 
   playApply(): void {
-    this.tone(523.25, 0.09, 'sine', 0.05);
-    this.tone(783.99, 0.12, 'sine', 0.045, 0.06);
+    this.tone(523.25, 0.09, 'sine', 0.09);
+    this.tone(783.99, 0.12, 'sine', 0.08, 0.06);
   }
 
   playReveal(score: number): void {
@@ -54,7 +54,7 @@ class Sound {
       : score >= 60
         ? [523.25, 659.25, 783.99]
         : [392, 349.23];
-    notes.forEach((f, i) => this.tone(f, 0.2, 'triangle', 0.05, i * 0.1));
+    notes.forEach((f, i) => this.tone(f, 0.2, 'triangle', 0.09, i * 0.1));
   }
 
   toggleMute(): boolean {
