@@ -58,6 +58,8 @@ that way until there's an actual reason to add one.
   Keep history readable — no "wip", "fix typo", "asdf" commits on `main`.
 - Frontend and backend evolve independently; a PR touching only one
   should only bump/discuss that package's version and deps.
+- Agents: all changes must be committed before reporting the task as
+  finished — no handing back a dirty working tree.
 
 ## Verification expectations
 
