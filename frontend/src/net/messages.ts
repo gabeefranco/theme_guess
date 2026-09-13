@@ -62,6 +62,22 @@ export interface RoundRevealMessage {
   colors: Record<string, Record<CategoryId, string>>;
 }
 
+/** Client -> server, ask to end the round early — see PROTOCOL.md
+ * "round:revealVote". Carries the same full-guess shape as
+ * `round:submit` (the Reveal button is only enabled once every category
+ * is painted); the round only actually ends once both players have
+ * sent this. */
+export interface RoundRevealVoteMessage {
+  type: 'round:revealVote';
+  colors: Record<CategoryId, string>;
+}
+
+/** Server -> the other player, live notice that this player voted to
+ * reveal early — lets that client's UI nudge them to do the same. */
+export interface RoundRevealVoteUpdateMessage {
+  type: 'round:revealVoteUpdate';
+}
+
 /** Server -> both players, private rooms only: next match in the series
  * is about to start. */
 export interface RoundNextMatchMessage {
@@ -189,6 +205,7 @@ export type ClientMessage =
   | RoomJoinMessage
   | RoundProgressMessage
   | RoundSubmitMessage
+  | RoundRevealVoteMessage
   | VoteCastMessage
   | PlayerQuitMessage;
 
@@ -201,6 +218,7 @@ export type ServerMessage =
   | RoundProgressMessage
   | RoundTimeWarningMessage
   | RoundRevealMessage
+  | RoundRevealVoteUpdateMessage
   | RoundNextMatchMessage
   | RoomCreatedMessage
   | RoomJoinedMessage

@@ -283,6 +283,16 @@ body {
   gap: 8px;
 }
 .panel-actions .btn { width: 100%; }
+/* `game/multiplayerMatch.ts`'s mutual reveal-vote status line, shown
+ * below the Reveal button once the local player has voted to reveal
+ * early and is waiting on the opponent to do the same (or vice versa). */
+.reveal-vote-status {
+  margin: 8px 0 0;
+  font-size: 10px;
+  text-align: center;
+  color: var(--cyan);
+}
+.reveal-vote-status.hidden { display: none; }
 
 /* ---------- split view (in-match opponent progress pane) ---------- */
 /* `.board` now holds up to three flex children: the "Yours" split-pane
@@ -503,6 +513,11 @@ body {
 }
 .theme-card:hover { transform: translate(-1px, -1px); }
 .theme-card.selected { border-color: var(--yellow); box-shadow: 3px 3px 0 var(--yellow); }
+/* `ui/themeVote.ts`: the opponent's live pick during theme voting — an
+ * outline (not a border/box-shadow, which `.selected` already owns) so
+ * both can be visible at once if a player picks the same theme their
+ * opponent already leans towards. */
+.theme-card.opponent-pick { outline: 3px dashed var(--pink); outline-offset: 2px; }
 .theme-swatches { display: flex; gap: 3px; }
 .theme-swatches i { width: 12px; height: 12px; border: 1px solid rgba(0,0,0,.5); display: block; }
 .theme-name {
@@ -728,6 +743,17 @@ body {
 /* ---------- multiplayer scoreboard (#12: two-column round reveal) ---------- */
 
 .mp-scoreboard.hidden { display: none; }
+/* `game/multiplayerMatch.ts` / `game/botMatch.ts` add `.hidden` to these
+ * four solo-result elements once a networked/bot round's real
+ * `renderMultiplayerResult` two-column scoreboard takes over — without
+ * these rules the class was inert (no selector consumed it) and the
+ * solo score panel stayed visible, stacked above the mp scoreboard. */
+#solo-score-meter-wrap.hidden,
+#score-verdict.hidden,
+#score-breakdown.hidden,
+#compare-toggle.hidden {
+  display: none;
+}
 
 .mp-winner-banner {
   text-align: center;

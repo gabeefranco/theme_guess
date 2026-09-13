@@ -23,6 +23,8 @@ import { THEMES } from '../data/themes';
 import type { GameClient } from '../net/client';
 import type { RoundStartMessage, TimeMode } from '../net/messages';
 import { renderBanBanner } from './banBanner';
+import { runThemePreview, type PreviewFlowElements } from './previewFlow';
+import { sound } from '../engine/sound';
 
 function requireEl<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -37,6 +39,11 @@ export interface MatchmakingFlowElements {
    * whenever `findMatchBtn` is showing its idle state. */
   statusMount: HTMLElement;
   themeNameBadge: HTMLElement;
+  /** Shared `#preview-overlay` elements (see `ui/previewFlow.ts`) — a
+   * match's theme flashes here for `COUNTDOWN_SECONDS` before the board
+   * unlocks, same as solo/bot rounds, and matching the server's own
+   * `endsAt` offset (`backend/src/game/session.js`'s `PREVIEW_MS`). */
+  preview: PreviewFlowElements;
 }
 
 export interface MatchmakingFlowHooks {
@@ -71,7 +78,7 @@ export function createMatchmakingFlow(
   client: GameClient,
   hooks: MatchmakingFlowHooks,
 ): void {
-  const { findMatchBtn, statusMount, themeNameBadge } = elements;
+  const { findMatchBtn, statusMount, themeNameBadge, preview } = elements;
   const closeResultBtn = requireEl<HTMLButtonElement>('close-result-btn');
   const playAgainBtn = requireEl<HTMLButtonElement>('play-again-btn');
 
@@ -196,7 +203,10 @@ export function createMatchmakingFlow(
     if (isNewMatch) match.bindGame(game);
 
     hooks.showBoard();
-    match.startRound(payload);
+    // Flash the assigned theme's real colors for the same window the
+    // server already baked into round:start's endsAt (session.js's
+    // PREVIEW_MS) before actually starting the round's countdown.
+    runThemePreview(preview, payload.themeId, () => match!.startRound(payload), () => sound.playOpen());
   }
 
   findMatchBtn.addEventListener('click', () => {

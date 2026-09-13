@@ -63,7 +63,7 @@ export function openThemeVote(
     <div class="modal theme-vote-modal">
       <h2>🗳 Pick a Theme</h2>
       <p class="theme-vote-countdown" data-el="countdown">${countdownText(msg.endsAt - Date.now())}</p>
-      <div class="theme-vote-grid" data-el="grid"></div>
+      <div class="theme-vote-grid theme-grid" data-el="grid"></div>
       <p class="theme-vote-opponent" data-el="opponent">Opponent is choosing…</p>
     </div>`;
 
@@ -71,7 +71,7 @@ export function openThemeVote(
   const gridEl = mount.querySelector<HTMLElement>('[data-el="grid"]')!;
   const opponentEl = mount.querySelector<HTMLElement>('[data-el="opponent"]')!;
 
-  createThemeGrid(gridEl, msg.themeIds[0], (id) => {
+  const grid = createThemeGrid(gridEl, msg.themeIds[0], (id) => {
     myPick = id;
     client.send({ type: 'vote:cast', themeId: id });
   });
@@ -85,7 +85,8 @@ export function openThemeVote(
   tickCountdown();
 
   const unsubOpponent = client.on('vote:opponentChoice', (opp) => {
-    opponentEl.textContent = `Opponent picked ${themeLabel(opp.themeId)}`;
+    opponentEl.textContent = `Opponent chose ${themeLabel(opp.themeId)}`;
+    grid.setOpponentPick(opp.themeId);
   });
 
   function cleanupListeners(): void {

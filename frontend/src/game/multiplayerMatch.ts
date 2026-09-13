@@ -106,6 +106,7 @@ export class MultiplayerMatch {
   private readonly splitView = requireEl<HTMLElement>('split-view');
   private readonly resultModal = requireEl<HTMLElement>('result-modal');
   private readonly mpScoreboard = requireEl<HTMLElement>('mp-scoreboard');
+  private readonly revealVoteStatusEl = requireEl<HTMLElement>('reveal-vote-status');
   private readonly soloResultEls = [
     requireEl<HTMLElement>('solo-score-meter-wrap'),
     requireEl<HTMLElement>('score-verdict'),
@@ -135,6 +136,12 @@ export class MultiplayerMatch {
   private unsubProgress: (() => void) | null = null;
   private unsubWarning: (() => void) | null = null;
   private unsubReveal: (() => void) | null = null;
+  private unsubRevealVoteUpdate: (() => void) | null = null;
+
+  /** Whether the local player has clicked Reveal Match this round and
+   * is waiting on the opponent to do the same — see `handleRevealVoteClick`.
+   * Reset per round by `startRound`/`teardownRound`. */
+  private revealVoted = false;
 
   private quitArmed = false;
   private quitArmTimeoutId: number | null = null;
@@ -185,11 +192,14 @@ export class MultiplayerMatch {
 
     this.game.setTheme(payload.themeId);
     this.game.setSnippet(payload.snippetIndex);
+    this.game.revealOverride = () => this.handleRevealVoteClick();
     this.opponentView.setSnippet(payload.snippetIndex);
     this.opponentView.reset();
 
     this.resultModal.classList.add('hidden');
     this.mpScoreboard.classList.add('hidden');
+    this.revealVoted = false;
+    this.revealVoteStatusEl.classList.add('hidden');
 
     this.unsubProgress = this.client.on('round:progress', (msg) => {
       this.opponentView.markAssigned(msg.categoryId);
@@ -199,6 +209,11 @@ export class MultiplayerMatch {
     });
     this.unsubReveal = this.client.on('round:reveal', (msg) => {
       this.handleReveal(msg);
+    });
+    this.unsubRevealVoteUpdate = this.client.on('round:revealVoteUpdate', () => {
+      if (this.revealVoted) return;
+      this.revealVoteStatusEl.textContent = 'Opponent voted to reveal — click Reveal Match to agree!';
+      this.revealVoteStatusEl.classList.remove('hidden');
     });
 
     this.stopTimer = startCountdown(this.timerEl, {
@@ -220,6 +235,21 @@ export class MultiplayerMatch {
 
   private submitFinalColors(): void {
     this.client.send({ type: 'round:submit', colors: this.finalizeColors() });
+  }
+
+  /** `ThemeGuessGame.revealOverride`'s target while a multiplayer round
+   * is live: the Reveal button (only enabled once every category is
+   * painted) casts this player's vote to end the round early instead of
+   * revealing anything locally — the real result only ever comes from
+   * `handleReveal`, once the server says both players agreed (or endsAt
+   * arrives regardless). A second click while already waiting is a
+   * no-op; the vote can't be un-cast. */
+  private handleRevealVoteClick(): void {
+    if (this.revealVoted) return;
+    this.revealVoted = true;
+    this.client.send({ type: 'round:revealVote', colors: this.finalizeColors() });
+    this.revealVoteStatusEl.textContent = 'Waiting for opponent to vote for reveal…';
+    this.revealVoteStatusEl.classList.remove('hidden');
   }
 
   private handleReveal(msg: RoundRevealMessage): void {
@@ -253,6 +283,12 @@ export class MultiplayerMatch {
     this.unsubWarning = null;
     this.unsubReveal?.();
     this.unsubReveal = null;
+    this.unsubRevealVoteUpdate?.();
+    this.unsubRevealVoteUpdate = null;
+
+    if (this.game) this.game.revealOverride = null;
+    this.revealVoted = false;
+    this.revealVoteStatusEl.classList.add('hidden');
 
     this.disarmQuit();
     this.quitBtn.classList.add('hidden');

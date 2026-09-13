@@ -42,6 +42,8 @@ import { MultiplayerMatch } from '../game/multiplayerMatch';
 import { OpponentView } from '../game/opponentView';
 import { getSharedGame } from '../game/sharedGame';
 import { openThemeVote, type ThemeVoteHandle } from './themeVote';
+import { runThemePreview, type PreviewFlowElements } from './previewFlow';
+import { sound } from '../engine/sound';
 
 export interface PrivateRoomFlowElements {
   /** Empty `.modal-overlay` mount (`#private-room-mount` in index.html)
@@ -51,6 +53,11 @@ export interface PrivateRoomFlowElements {
   /** Same theme-name badge the solo flow updates, kept in sync with the
    * server-assigned `themeId` once a round actually starts. */
   themeNameBadge: HTMLElement;
+  /** Shared `#preview-overlay` elements (see `ui/previewFlow.ts`) — every
+   * match in the room's up-to-5-match series flashes its theme here
+   * before the board unlocks, matching the server's `endsAt` offset
+   * (`backend/src/game/session.js`'s `PREVIEW_MS`). */
+  preview: PreviewFlowElements;
 }
 
 export interface PrivateRoomFlowCallbacks {
@@ -110,7 +117,8 @@ export function createPrivateRoomFlow(
   elements: PrivateRoomFlowElements,
   callbacks: PrivateRoomFlowCallbacks,
 ): PrivateRoomFlow {
-  const { mount, themeNameBadge } = elements;
+  const { mount, themeNameBadge, preview } = elements;
+  const resultModal = requireEl<HTMLElement>('result-modal');
 
   let roomActive = false;
   let lastJoinCode = '';
@@ -122,12 +130,14 @@ export function createPrivateRoomFlow(
 
   let activeVoteHandle: ThemeVoteHandle | null = null;
   // Set while the local theme-vote settle animation (spin/"YOU AGREE!")
-  // is still playing. `round:start` for the settled match can arrive
-  // from the server before that animation finishes (the backend fires
-  // it right after `vote:settled`) — in that case the payload is
-  // buffered here and `enterRound` runs once the animation completes,
-  // so the vote's own reveal is never cut short.
+  // is still playing, or while the "Match N of 5" transition banner is
+  // showing. `round:start` for the settled/next match can arrive from
+  // the server before either finishes playing out (the backend fires it
+  // right after `vote:settled`, and right after `round:nextMatch`) — in
+  // that case the payload is buffered here and the round begins once
+  // whichever is pending completes, so neither is ever cut short.
   let voteAnimationPending = false;
+  let transitionPending = false;
   let bufferedRoundStart: RoundStartMessage | null = null;
 
   function clearTransitionTimeout(): void {
@@ -292,7 +302,13 @@ export function createPrivateRoomFlow(
           </div>`;
         transitionTimeoutId = window.setTimeout(() => {
           transitionTimeoutId = null;
+          transitionPending = false;
           render({ kind: 'hidden' });
+          if (bufferedRoundStart) {
+            const payload = bufferedRoundStart;
+            bufferedRoundStart = null;
+            beginRoundWithPreview(payload);
+          }
         }, MATCH_TRANSITION_MS);
         break;
 
@@ -346,6 +362,17 @@ export function createPrivateRoomFlow(
     ensureMatch(payload).startRound(payload);
   }
 
+  /** Flashes `payload.themeId`'s real colors for the same window the
+   * server already baked into `round:start.endsAt` (session.js's
+   * `PREVIEW_MS`) before actually mounting the round via `enterRound` —
+   * every match in the series gets this, not just match 1, since a
+   * `themeMode: 'random'` room picks a fresh theme each match. */
+  function beginRoundWithPreview(payload: RoundStartMessage): void {
+    render({ kind: 'hidden' });
+    callbacks.hideMenu();
+    runThemePreview(preview, payload.themeId, () => enterRound(payload), () => sound.playOpen());
+  }
+
   client.on('room:created', (msg) => {
     render({ kind: 'create-waiting', code: msg.code });
   });
@@ -373,26 +400,32 @@ export function createPrivateRoomFlow(
       if (bufferedRoundStart) {
         const payload = bufferedRoundStart;
         bufferedRoundStart = null;
-        enterRound(payload);
+        beginRoundWithPreview(payload);
       }
     });
   });
 
   client.on('round:nextMatch', (msg: RoundNextMatchMessage) => {
     if (!roomActive) return;
+    // The RESULT_VIEW_MS delay the server put between round:reveal and
+    // this message (backend/src/rooms/room.js) is exactly the window
+    // the result modal (already showing via MultiplayerMatch.handleReveal)
+    // was up for review — hide it now, right as the series moves on.
+    resultModal.classList.add('hidden');
+    transitionPending = true;
     render({ kind: 'match-transition', match: msg.match });
   });
 
   client.on('round:start', (payload) => {
     if (!roomActive) return;
-    if (voteAnimationPending) {
-      // The settled theme's `round:start` beat the local vote-modal
-      // reveal animation (see `voteAnimationPending`'s declaration) —
-      // hold it until the animation's settle callback fires.
+    if (voteAnimationPending || transitionPending) {
+      // The settled theme's/next match's `round:start` beat the local
+      // vote-modal or "Match N of 5" animation still playing — hold it
+      // until that finishes (see their respective declarations/handlers).
       bufferedRoundStart = payload;
       return;
     }
-    enterRound(payload);
+    beginRoundWithPreview(payload);
   });
 
   client.on('room:closed', (msg) => {
@@ -400,6 +433,7 @@ export function createPrivateRoomFlow(
     activeVoteHandle?.destroy();
     activeVoteHandle = null;
     voteAnimationPending = false;
+    transitionPending = false;
     bufferedRoundStart = null;
     // The opponent's own `MultiplayerMatch.teardownRound()` never ran
     // for this abandoned round (only the quitter's local instance tore

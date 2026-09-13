@@ -72,7 +72,7 @@ createSoloConfigFlow(
 
 const privateRoomFlow = createPrivateRoomFlow(
   client,
-  { mount: privateRoomMount, themeNameBadge },
+  { mount: privateRoomMount, themeNameBadge, preview: previewElements },
   { hideMenu: () => showView(null), showMenu: () => showView('menu') },
 );
 
@@ -80,7 +80,7 @@ enterCodeBtn.addEventListener('click', () => privateRoomFlow.openJoin());
 createRoomBtn.addEventListener('click', () => privateRoomFlow.openCreate());
 
 createMatchmakingFlow(
-  { findMatchBtn, statusMount: matchmakingStatusEl, themeNameBadge },
+  { findMatchBtn, statusMount: matchmakingStatusEl, themeNameBadge, preview: previewElements },
   client,
   { showBoard: () => showView(null), showMenu: () => showView('menu') },
 );

@@ -20,6 +20,13 @@ import { startVote } from './themeVote.js';
 const MAX_MATCHES = 5;
 const CODE_MIN = 100000;
 const CODE_MAX = 999999;
+// How long a private-room result screen stays up (both `round:nextMatch`
+// and, for the series-ending match, `room:closed`) before the server
+// moves the room on to whatever's next — gives both players a fixed
+// window to actually look at a match's result instead of being cut off
+// the instant it lands. Frontend mirrors this by only tearing the result
+// modal down once it actually receives that delayed message.
+const RESULT_VIEW_MS = 10_000;
 
 // code (number) -> room. A room's code is freed (removed from this map)
 // as soon as the room closes, so a future room:create can reuse it.
@@ -45,6 +52,8 @@ function teardownRoom(room) {
   for (const id of room.players) {
     roomCodeByPlayerId.delete(id);
   }
+  clearTimeout(room.nextMatchTimer);
+  clearTimeout(room.closeTimer);
 }
 
 /**
@@ -137,16 +146,26 @@ function handleSessionEnd(room, reason, quitterId) {
   room.matchesPlayed += 1;
   room.previousThemeId = room.currentThemeId;
 
+  // Give both players RESULT_VIEW_MS to actually look at this match's
+  // result before the room moves on — see RESULT_VIEW_MS's own comment.
   if (room.matchesPlayed >= MAX_MATCHES) {
-    closeRoom(room, 'matchLimit');
+    room.closeTimer = setTimeout(() => {
+      room.closeTimer = null;
+      if (!rooms.has(room.code)) return; // torn down while waiting
+      closeRoom(room, 'matchLimit');
+    }, RESULT_VIEW_MS);
     return;
   }
 
   const nextMatch = room.matchesPlayed + 1;
-  for (const id of room.players) {
-    sendTo(id, { type: 'round:nextMatch', match: nextMatch });
-  }
-  startMatch(room);
+  room.nextMatchTimer = setTimeout(() => {
+    room.nextMatchTimer = null;
+    if (!rooms.has(room.code)) return; // torn down while waiting
+    for (const id of room.players) {
+      sendTo(id, { type: 'round:nextMatch', match: nextMatch });
+    }
+    startMatch(room);
+  }, RESULT_VIEW_MS);
 }
 
 /**
@@ -174,6 +193,8 @@ export function registerRoomHandlers() {
       currentThemeId: null,
       votedThemeId: null,
       session: null,
+      nextMatchTimer: null,
+      closeTimer: null,
     };
     rooms.set(code, room);
     roomCodeByPlayerId.set(ownerId, code);

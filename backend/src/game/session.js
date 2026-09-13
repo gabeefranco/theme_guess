@@ -22,6 +22,13 @@ const WARNING_OFFSET_MS = 20_000;
 // server reveals with whatever it has (empty color map for a client that
 // never submitted).
 const SUBMIT_GRACE_MS = 3_000;
+// PROTOCOL.md "round:start": every round's countdown (`endsAt`) starts
+// this many ms after `round:start` is sent, giving both clients a fixed
+// window to run their local theme-preview flash before painting is even
+// possible — baked into `endsAt` itself (not a separate delayed send) so
+// the server stays the single source of truth for round timing that
+// `PROTOCOL.md` promises.
+const PREVIEW_MS = 10_000;
 
 const HEX_COLOR_PATTERN = /^#?[0-9a-fA-F]{3,8}$/;
 
@@ -120,7 +127,7 @@ export function createSession({ playerA, playerB, timeMode, themeId, snippetInde
     ? snippetIndex
     : Math.floor(Math.random() * SNIPPET_CATALOG_LENGTH);
 
-  const endsAt = Date.now() + timeMode * 60_000;
+  const endsAt = Date.now() + PREVIEW_MS + timeMode * 60_000;
 
   const session = {
     playerA,
@@ -131,6 +138,10 @@ export function createSession({ playerA, playerB, timeMode, themeId, snippetInde
     endsAt,
     onEnd,
     submissions: new Map(),
+    // playerIds who've clicked "Reveal Match" and asked to end the round
+    // early — see the `round:revealVote` handler below. Reset per
+    // session; a mutual vote reveals immediately, bypassing endsAt.
+    revealVotes: new Set(),
     ended: false,
     roundEnded: false,
     warningTimer: null,
@@ -185,6 +196,33 @@ registerHandler('round:submit', (socket, message) => {
     message.colors && typeof message.colors === 'object' && !Array.isArray(message.colors) ? message.colors : {};
   session.submissions.set(playerId, colors);
   tryReveal(session);
+});
+
+// PROTOCOL.md "round:revealVote": lets both players agree to end the
+// round before endsAt. Carries the same full colors shape as
+// round:submit (the Reveal button is only enabled once every category
+// is painted, so this is always a real final guess, not a partial one)
+// and is treated identically to a submission; the only difference is
+// that a *mutual* vote reveals immediately instead of waiting for
+// endsAt/tryReveal's grace window.
+registerHandler('round:revealVote', (socket, message) => {
+  const playerId = getPlayerId(socket);
+  const session = sessionsByPlayerId.get(playerId);
+  if (!session || session.ended) return;
+
+  const colors =
+    message.colors && typeof message.colors === 'object' && !Array.isArray(message.colors) ? message.colors : {};
+  session.submissions.set(playerId, colors);
+  session.revealVotes.add(playerId);
+
+  if (session.revealVotes.size >= 2) {
+    session.roundEnded = true;
+    clearSessionTimers(session);
+    revealSession(session);
+    return;
+  }
+
+  sendTo(otherPlayer(session, playerId), { type: 'round:revealVoteUpdate' });
 });
 
 registerHandler('player:quit', (socket) => {

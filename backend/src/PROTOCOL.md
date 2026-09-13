@@ -68,8 +68,9 @@ stateDiagram-v2
   Painting --> Painting: round:progress (either direction, repeatable)
   Painting --> Warning: round:timeWarning (t = endsAt - 20s)
   Warning --> Warning: round:progress
-  Warning --> Submitted: round:submit (per player, 0-2 times)
-  Submitted --> Reveal: endsAt reached
+  Painting --> Submitted: round:submit / round:revealVote (per player, 0-2 times)
+  Warning --> Submitted: round:submit / round:revealVote (per player, 0-2 times)
+  Submitted --> Reveal: endsAt reached, or both round:revealVote
   Reveal --> [*]: round:reveal
 ```
 
@@ -83,9 +84,16 @@ stateDiagram-v2
     "endsAt": 1757500000000      // epoch ms; server-authoritative round-end deadline
   }
   ```
-  `endsAt` is computed server-side (`now + timeMode * 60_000`) and is the
-  single source of truth for round timing; clients render a countdown
-  from it but never decide when the round ends themselves.
+  `endsAt` is computed server-side (`now + PREVIEW_MS + timeMode * 60_000`,
+  `PREVIEW_MS` = 10s, `backend/src/game/session.js`) and is the single
+  source of truth for round timing. The `PREVIEW_MS` head start is
+  deliberate, not latency slack: both clients spend it flashing
+  `themeId`'s real colors (`ui/previewFlow.ts`'s `runThemePreview`, same
+  10s window as solo/bot rounds) before the board unlocks and the
+  countdown is even shown, so painting time always equals the full
+  `timeMode` regardless of that shared preview. Clients render a
+  countdown from `endsAt` but never decide when the round ends
+  themselves.
 
 - **`round:progress`** — client -> server -> opponent, fired every time a
   player assigns a color to a category while painting.
@@ -133,10 +141,30 @@ stateDiagram-v2
   omitted and the receiving client treats it the same as an
   all-`null` map).
 
-- **`round:reveal`** — server -> both players, sent only once `endsAt`
-  has passed (never early, even if both players already submitted) so
-  neither client can infer the opponent's picks before the round is
-  officially over.
+- **`round:revealVote`** — client -> server, the Reveal button's click
+  while a round is still live (only enabled once every category is
+  painted — see `frontend/src/game/ThemeGuessGame.ts`'s `revealBtn`
+  gating). Same shape and same "last one wins" semantics as
+  `round:submit`, and is in fact stored exactly like one; the *only*
+  extra effect is that once **both** players have sent a
+  `round:revealVote` for the round, it ends immediately — `round:reveal`
+  fires right away instead of waiting for `endsAt`.
+  ```jsonc
+  { "type": "round:revealVote", "colors": { "background": "#1a1b26", ... } }
+  ```
+- **`round:revealVoteUpdate`** — server -> the *other* player, sent when
+  the sender is the first (not yet both) of the two to `round:revealVote`
+  this round, so that player's client can nudge them ("your opponent
+  wants to reveal") to do the same.
+  ```jsonc
+  { "type": "round:revealVoteUpdate" }
+  ```
+
+- **`round:reveal`** — server -> both players, sent once `endsAt` has
+  passed, or immediately if both players `round:revealVote` first —
+  never early on a *single* player's submission or vote, so neither
+  client can infer the opponent's picks before the round is officially
+  over for both.
   ```jsonc
   {
     "type": "round:reveal",
@@ -155,7 +183,12 @@ Private rooms additionally get:
 
 - **`round:nextMatch`** — server -> both players, sent after a
   `round:reveal` in a private room if the series hasn't hit its 5-match
-  cap, immediately followed by the next `round:start`.
+  cap, `RESULT_VIEW_MS` (10s, `backend/src/rooms/room.js`) after that
+  `round:reveal` — giving both players a fixed window to actually look
+  at the match's result before the room moves on — immediately followed
+  by the next `round:start`. The series-ending match instead delays
+  `room:closed` (`reason: "matchLimit"`, see below) by the same
+  `RESULT_VIEW_MS` for the same reason.
   ```jsonc
   { "type": "round:nextMatch", "match": 3 } // 1-5, the match about to start
   ```
@@ -266,9 +299,11 @@ stateDiagram-v2
   ```
   - `quit` — `room:playerLeft` just fired; a player quit or disconnected
     before the 5-match series completed.
-  - `matchLimit` — match 5 of 5's `round:reveal` was just delivered and
-    the series cap was reached; the server closes the room on its own,
-    no client action required.
+  - `matchLimit` — match 5 of 5's `round:reveal` was delivered and the
+    series cap was reached; sent `RESULT_VIEW_MS` after that
+    `round:reveal` (same result-viewing window `round:nextMatch` gets —
+    see above) and the server closes the room on its own, no client
+    action required.
   - `finished` — both players are done looking at the last result and
     one of them explicitly leaves the room via the post-game UI (a
     normal, non-quit exit after `matchLimit` would otherwise leave the

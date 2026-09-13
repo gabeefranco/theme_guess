@@ -77,6 +77,15 @@ export class ThemeGuessGame {
    * listeners onto the same DOM). */
   onCategoryAssigned?: (id: CategoryId, hex: string) => void;
 
+  /** Set by `MultiplayerMatch` while a networked round is live: routes
+   * the shared Reveal button's click through a server-mediated mutual
+   * vote instead of this class's own instant local `reveal()` — a
+   * multiplayer round's real result must wait for `round:reveal` (both
+   * players agreeing to reveal, or endsAt), never a single player's own
+   * click. `null` (solo/bot play, or no round active) falls back to the
+   * normal `reveal()`. Reset to `null` once the round tears down. */
+  revealOverride: (() => void) | null = null;
+
   constructor(
     themeId: ThemeId,
     snippetIndex: number = pickRandomSnippetIndex(),
@@ -216,7 +225,13 @@ export class ThemeGuessGame {
       this.closePicker(true);
     });
 
-    this.revealBtn.addEventListener('click', () => this.reveal());
+    this.revealBtn.addEventListener('click', () => {
+      if (this.revealOverride) {
+        this.revealOverride();
+        return;
+      }
+      this.reveal();
+    });
     this.resetBtn.addEventListener('click', () => this.resetColors());
 
     this.compareToggle.addEventListener('click', (e) => {
