@@ -1,6 +1,5 @@
 import './style.css';
 import { sound } from './engine/sound';
-import { createThemeGrid } from './ui/themeGrid';
 import { createSoloConfigFlow } from './ui/soloConfigFlow';
 import { createMatchmakingFlow } from './ui/matchmakingFlow';
 import { createPrivateRoomFlow } from './ui/privateRoomFlow';
@@ -14,9 +13,7 @@ function requireEl<T extends HTMLElement>(id: string): T {
 
 const menuModal = requireEl<HTMLElement>('intro-modal');
 const resultModal = requireEl<HTMLElement>('result-modal');
-const themeGridEl = requireEl<HTMLElement>('theme-grid');
 const menuSoloSection = requireEl<HTMLElement>('menu-solo');
-const soloThemePickerWrap = requireEl<HTMLElement>('solo-theme-picker');
 const soloBotDifficultyWrap = requireEl<HTMLElement>('solo-bot-difficulty');
 const soloTimerMount = requireEl<HTMLElement>('solo-timer-mount');
 const startBtn = requireEl<HTMLButtonElement>('start-btn');
@@ -28,6 +25,7 @@ const helpBtn = requireEl<HTMLButtonElement>('help-btn');
 const muteBtn = requireEl<HTMLButtonElement>('mute-btn');
 const themeNameBadge = requireEl<HTMLElement>('theme-name-badge');
 const changeThemeBtn = requireEl<HTMLButtonElement>('change-theme-btn');
+const backToMenuBtn = requireEl<HTMLButtonElement>('back-to-menu-btn');
 const privateRoomMount = requireEl<HTMLElement>('private-room-mount');
 
 const previewElements = {
@@ -35,6 +33,12 @@ const previewElements = {
   countdown: requireEl<HTMLElement>('preview-countdown'),
   caption: requireEl<HTMLElement>('preview-caption'),
   canvas: requireEl<HTMLCanvasElement>('preview-canvas'),
+};
+
+const themePickerElements = {
+  overlay: requireEl<HTMLElement>('theme-picker-modal'),
+  gridMount: requireEl<HTMLElement>('theme-picker-grid'),
+  cancelBtn: requireEl<HTMLButtonElement>('theme-picker-cancel-btn'),
 };
 
 /** Top-level overlay screens the composition root switches between. At most
@@ -53,19 +57,18 @@ function showView(name: ScreenName | null): void {
   }
 }
 
-const themeGrid = createThemeGrid(themeGridEl, 'gruvbox', () => sound.playOpen());
-
 createSoloConfigFlow(
   {
     section: menuSoloSection,
-    themePickerWrap: soloThemePickerWrap,
     botDifficultyWrap: soloBotDifficultyWrap,
     playBtn: startBtn,
     timerMount: soloTimerMount,
     themeNameBadge,
     preview: previewElements,
+    themePicker: themePickerElements,
+    changeThemeBtn,
+    backToMenuBtn,
   },
-  themeGrid,
   { hideMenu: () => showView(null), showMenu: () => showView('menu') },
 );
 

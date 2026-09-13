@@ -482,13 +482,6 @@ body {
 }
 .modal ol { padding-left: 20px; line-height: 1.7; color: var(--fg-dim); font-size: 13px; }
 .modal p { color: var(--fg-dim); font-size: 13px; }
-.pick-theme-label {
-  font-family: var(--pixel);
-  font-size: 9px;
-  color: var(--cyan);
-  text-align: center;
-  margin: 18px 0 10px;
-}
 
 .theme-grid {
   display: grid;
@@ -592,8 +585,6 @@ body {
   animation: revealPulse 1.6s steps(2) infinite;
 }
 
-#menu-solo .theme-grid { margin-bottom: 0; }
-
 .solo-config-group { display: flex; flex-direction: column; gap: 6px; }
 .solo-config-label { margin: 0; font-family: var(--pixel); font-size: 9px; color: var(--fg-dim); letter-spacing: .5px; }
 .solo-radio-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -613,7 +604,7 @@ body {
 .solo-radio:has(input:checked) { background: var(--panel-3); color: var(--fg); border-color: var(--yellow); }
 .solo-radio input { accent-color: var(--yellow); margin: 0; }
 
-#solo-theme-picker.hidden, #solo-bot-difficulty.hidden { display: none; }
+#solo-bot-difficulty.hidden { display: none; }
 
 @media (max-width: 640px) {
   .menu-sections { grid-template-columns: 1fr; }

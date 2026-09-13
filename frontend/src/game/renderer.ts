@@ -70,7 +70,7 @@ export function drawFrame(state: RenderState, now: number): void {
  * actual color is never transmitted or known here (see PROTOCOL.md
  * `round:progress`), so this is the only color this view can ever show
  * for a picked category. */
-export const OPPONENT_ASSIGNED_HEX = '#5fd75f';
+export const OPPONENT_ASSIGNED_HEX = '#3e8c3e';
 /** Flat grey used for categories the opponent hasn't picked yet. */
 export const OPPONENT_UNASSIGNED_HEX = '#3a3a52';
 

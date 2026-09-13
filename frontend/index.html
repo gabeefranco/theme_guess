@@ -105,11 +105,6 @@
             </div>
           </div>
 
-          <div id="solo-theme-picker" class="hidden">
-            <p class="pick-theme-label">▼ PICK A THEME ▼</p>
-            <div id="theme-grid" class="theme-grid"></div>
-          </div>
-
           <div class="solo-config-group">
             <p class="solo-config-label">🤖 OPPONENT</p>
             <div class="solo-radio-row">
@@ -190,7 +185,18 @@
       <div class="modal-actions">
         <button id="close-result-btn" class="btn ghost">Keep Comparing</button>
         <button id="change-theme-btn" class="btn ghost">🔄 Change Theme</button>
+        <button id="back-to-menu-btn" class="btn ghost hidden">🏠 Back to Menu</button>
         <button id="play-again-btn" class="btn primary">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="theme-picker-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>🎨 CHOOSE A THEME</h2>
+      <div id="theme-picker-grid" class="theme-grid"></div>
+      <div class="modal-actions">
+        <button id="theme-picker-cancel-btn" class="btn ghost">Cancel</button>
       </div>
     </div>
   </div>
