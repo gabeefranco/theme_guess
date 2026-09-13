@@ -24,7 +24,6 @@ const matchmakingStatusEl = requireEl<HTMLElement>('matchmaking-status');
 const helpBtn = requireEl<HTMLButtonElement>('help-btn');
 const muteBtn = requireEl<HTMLButtonElement>('mute-btn');
 const themeNameBadge = requireEl<HTMLElement>('theme-name-badge');
-const changeThemeBtn = requireEl<HTMLButtonElement>('change-theme-btn');
 const backToMenuBtn = requireEl<HTMLButtonElement>('back-to-menu-btn');
 const privateRoomMount = requireEl<HTMLElement>('private-room-mount');
 
@@ -66,7 +65,6 @@ createSoloConfigFlow(
     themeNameBadge,
     preview: previewElements,
     themePicker: themePickerElements,
-    changeThemeBtn,
     backToMenuBtn,
   },
   { hideMenu: () => showView(null), showMenu: () => showView('menu') },
@@ -88,7 +86,6 @@ createMatchmakingFlow(
 );
 
 helpBtn.addEventListener('click', () => showView('menu'));
-changeThemeBtn.addEventListener('click', () => showView('menu'));
 
 muteBtn.addEventListener('click', () => {
   const muted = sound.toggleMute();

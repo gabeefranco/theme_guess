@@ -53,11 +53,10 @@ export interface SoloConfigFlowElements {
     gridMount: HTMLElement;
     cancelBtn: HTMLButtonElement;
   };
-  /** Result-modal button used by every non-solo match; hidden for as
-   * long as a solo/bot round is active, in favor of `backToMenuBtn`. */
-  changeThemeBtn: HTMLButtonElement;
-  /** Result-modal button shown in `changeThemeBtn`'s place once a
-   * solo/bot round has started. */
+  /** Result-modal button shown for as long as a solo/bot round is
+   * active — does the same "back to the main menu" thing the old
+   * change-theme button used to, plus solo cleanup (stops the bot,
+   * hides the timer HUD). */
   backToMenuBtn: HTMLButtonElement;
 }
 
@@ -238,7 +237,7 @@ export function createSoloConfigFlow(
 
   const timerHud = createTimerHud(elements.timerMount, quit);
 
-  const themeGrid = createThemeGrid(elements.themePicker.gridMount, readLastTheme() ?? 'gruvbox', (themeId) => {
+  const themeGrid = createThemeGrid(elements.themePicker.gridMount, 'gruvbox', (themeId) => {
     sound.playOpen();
     if (!pendingConfig) return;
     const config = pendingConfig;
@@ -277,7 +276,6 @@ export function createSoloConfigFlow(
     lastConfig = config;
     soloActive = true;
     writeLastTheme(config.themeId);
-    elements.changeThemeBtn.classList.add('hidden');
     elements.backToMenuBtn.classList.remove('hidden');
     hooks.hideMenu();
     runThemePreview(elements.preview, config.themeId, () => {
@@ -365,7 +363,6 @@ export function createSoloConfigFlow(
     soloActive = false;
     botMatch.stop();
     timerHud.hide();
-    elements.changeThemeBtn.classList.remove('hidden');
     elements.backToMenuBtn.classList.add('hidden');
     hooks.showMenu();
   }
