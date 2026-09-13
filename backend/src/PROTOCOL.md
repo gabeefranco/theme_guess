@@ -25,8 +25,10 @@ message-specific fields — no envelope wrapper, no request/response ids.
 
 There is no account system and none is planned — adding auth is out of
 scope for multiplayer entirely. Instead, the client generates a
-`playerId` (a `crypto.randomUUID()` v4 string) the first time it loads,
-persists it in `localStorage`, and reuses it on every future visit. The
+`playerId` (a `crypto.randomUUID()` v4 string) the first time a tab
+loads, persists it in `sessionStorage`, and reuses it for the lifetime
+of that tab (a reload keeps the same identity; a new tab gets a new
+one, so two tabs of the same browser act as two distinct players). The
 player also picks/keeps a display `name` (also persisted client-side, no
 server-side uniqueness check). The very first message a client sends
 after the socket opens registers both with the server:
