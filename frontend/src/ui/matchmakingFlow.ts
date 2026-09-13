@@ -52,8 +52,8 @@ export interface MatchmakingFlowHooks {
 type FlowState = 'idle' | 'searching' | 'banned' | 'found' | 'in-match';
 
 const TIME_MODE_LABEL: Record<TimeMode, string> = {
-  1: '🎯 1 MINUTE MATCH',
   2: '🎯 2 MINUTE MATCH',
+  4: '🎯 4 MINUTE MATCH',
 };
 
 /** Minimum time the assigned-mode banner stays up before handing off to

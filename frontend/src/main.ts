@@ -1,9 +1,6 @@
 import './style.css';
-import { getSharedGame } from './game/sharedGame';
-import { THEMES } from './data/themes';
 import { sound } from './engine/sound';
 import { createThemeGrid } from './ui/themeGrid';
-import { runThemePreview } from './ui/previewFlow';
 import { createSoloConfigFlow } from './ui/soloConfigFlow';
 import { createMatchmakingFlow } from './ui/matchmakingFlow';
 import { createPrivateRoomFlow } from './ui/privateRoomFlow';
@@ -58,24 +55,18 @@ function showView(name: ScreenName | null): void {
 
 const themeGrid = createThemeGrid(themeGridEl, 'gruvbox', () => sound.playOpen());
 
-const soloConfigFlow = createSoloConfigFlow(
+createSoloConfigFlow(
   {
     section: menuSoloSection,
     themePickerWrap: soloThemePickerWrap,
     botDifficultyWrap: soloBotDifficultyWrap,
     playBtn: startBtn,
     timerMount: soloTimerMount,
+    themeNameBadge,
+    preview: previewElements,
   },
   themeGrid,
-  (config) => {
-    showView(null);
-    runThemePreview(previewElements, config.themeId, () => {
-      getSharedGame(config.themeId, config.snippetIndex, (id, hex) => soloConfigFlow.handleLocalAssignment(id, hex));
-      themeNameBadge.textContent = THEMES[config.themeId].name;
-      sound.playApply();
-      soloConfigFlow.startTimer(config.timeMode);
-    }, () => sound.playOpen());
-  },
+  { hideMenu: () => showView(null), showMenu: () => showView('menu') },
 );
 
 const privateRoomFlow = createPrivateRoomFlow(

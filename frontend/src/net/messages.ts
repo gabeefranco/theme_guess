@@ -7,7 +7,7 @@
 
 import type { CategoryId, ThemeId } from '../types';
 
-export type TimeMode = 1 | 2;
+export type TimeMode = 2 | 4;
 export type ThemeMode = 'random' | 'chosen';
 export type RoomErrorReason = 'not_found' | 'full';
 export type RoomClosedReason = 'quit' | 'matchLimit' | 'finished';

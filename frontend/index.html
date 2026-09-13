@@ -40,19 +40,30 @@
     <div id="match-timer-warning" class="hidden"></div>
 
     <main class="board">
-      <div class="canvas-wrap">
-        <canvas id="code-canvas"></canvas>
+      <div id="split-view" class="split-pane hidden" aria-label="Opponent progress">
+        <div class="split-pane-label">Opponent</div>
+        <div class="canvas-wrap split-canvas-wrap">
+          <canvas id="opponent-canvas" class="split-canvas"></canvas>
+          <div id="opponent-complete-banner" class="opponent-complete-banner hidden">🏁 Opponent finished!</div>
+        </div>
+      </div>
 
-        <div id="picker-popover" class="popover hidden">
-          <div class="popover-arrow"></div>
-          <div class="popover-label" id="popover-label">Keyword</div>
-          <div class="popover-row">
-            <input type="color" id="popover-color" value="#ffffff" />
-            <input type="text" id="popover-hex" maxlength="7" spellcheck="false" autocomplete="off" />
-          </div>
-          <div class="popover-actions">
-            <button id="popover-cancel" class="btn ghost small">Cancel</button>
-            <button id="popover-apply" class="btn primary small">Apply</button>
+      <div class="split-pane yours-pane">
+        <div class="split-pane-label yours-label">Yours</div>
+        <div class="canvas-wrap split-canvas-wrap">
+          <canvas id="code-canvas"></canvas>
+
+          <div id="picker-popover" class="popover hidden">
+            <div class="popover-arrow"></div>
+            <div class="popover-label" id="popover-label">Keyword</div>
+            <div class="popover-row">
+              <input type="color" id="popover-color" value="#ffffff" />
+              <input type="text" id="popover-hex" maxlength="7" spellcheck="false" autocomplete="off" />
+            </div>
+            <div class="popover-actions">
+              <button id="popover-cancel" class="btn ghost small">Cancel</button>
+              <button id="popover-apply" class="btn primary small">Apply</button>
+            </div>
           </div>
         </div>
       </div>
@@ -65,21 +76,6 @@
         </div>
       </aside>
     </main>
-
-    <section id="split-view" class="split-view hidden" aria-label="Match progress">
-      <div class="split-pane">
-        <div class="split-pane-label">Yours</div>
-        <div class="canvas-wrap split-canvas-wrap">
-          <canvas id="split-your-canvas" class="split-canvas"></canvas>
-        </div>
-      </div>
-      <div class="split-pane">
-        <div class="split-pane-label">Opponent</div>
-        <div class="canvas-wrap split-canvas-wrap">
-          <canvas id="opponent-canvas" class="split-canvas"></canvas>
-        </div>
-      </div>
-    </section>
   </div>
 
   <div id="intro-modal" class="modal-overlay">
@@ -95,8 +91,8 @@
           <div class="solo-config-group">
             <p class="solo-config-label">⏱ TIME</p>
             <div class="solo-radio-row">
-              <label class="solo-radio"><input type="radio" name="solo-time-mode" value="1min" checked />1 MIN</label>
-              <label class="solo-radio"><input type="radio" name="solo-time-mode" value="2min" />2 MIN</label>
+              <label class="solo-radio"><input type="radio" name="solo-time-mode" value="2min" checked />2 MIN</label>
+              <label class="solo-radio"><input type="radio" name="solo-time-mode" value="4min" />4 MIN</label>
               <label class="solo-radio"><input type="radio" name="solo-time-mode" value="none" />NO LIMIT</label>
             </div>
           </div>

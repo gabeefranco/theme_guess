@@ -285,14 +285,14 @@ body {
 .panel-actions .btn { width: 100%; }
 
 /* ---------- split view (in-match opponent progress pane) ---------- */
+/* `.board` now holds up to three flex children: the "Yours" split-pane
+ * (always present — it's the live interactive `#code-canvas`), the
+ * "Opponent" split-pane (`#split-view`, hidden outside a bot/multiplayer
+ * round), and the fixed-width `.panel-col`. Hiding `#split-view` lets
+ * `.yours-pane` fill the whole row, exactly reproducing solo-alone's
+ * original single-canvas layout. */
 
-.split-view {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  gap: 14px;
-}
-.split-view.hidden { display: none; }
+.split-pane.hidden { display: none; }
 
 .split-pane {
   flex: 1 1 0;
@@ -311,11 +311,42 @@ body {
   flex: 0 0 auto;
 }
 
+/* Only meaningful once there's something to compare against — stays
+ * hidden while `#split-view` (the "Opponent" pane) is hidden, so solo
+ * "Alone" play still shows one unlabeled canvas, same as before this
+ * pane was mergeable with an opponent's. */
+.yours-label { display: none; }
+.board:has(> #split-view:not(.hidden)) .yours-label { display: block; }
+
 .split-canvas-wrap {
   flex: 1 1 auto;
 }
 
 .split-canvas { display: block; }
+
+/* Pixel-style toast over the opponent canvas once `OpponentView` has
+ * received every category — see `game/opponentView.ts`'s `markAssigned`. */
+.opponent-complete-banner {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  font-family: var(--pixel);
+  font-size: 11px;
+  color: var(--ink);
+  background: var(--green);
+  border: 3px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  padding: 8px 12px;
+  white-space: nowrap;
+  z-index: 2;
+  animation: bannerPop .4s steps(4);
+}
+.opponent-complete-banner.hidden { display: none; }
+@keyframes bannerPop {
+  0% { transform: translateX(-50%) scale(1); }
+  40% { transform: translateX(-50%) scale(1.15); }
+  100% { transform: translateX(-50%) scale(1); }
+}
 
 .cat-card {
   background: var(--panel-2);

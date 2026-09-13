@@ -100,7 +100,7 @@ function quitSession(session, quitterId) {
 
 /**
  * Starts one round session between two already-identified players.
- * `timeMode` is 1 or 2 (minutes, per PROTOCOL.md); `themeId` and
+ * `timeMode` is 2 or 4 (minutes, per PROTOCOL.md); `themeId` and
  * `snippetIndex` are decided upstream (or `snippetIndex` is picked
  * randomly here if omitted). Sends round:start to both sockets
  * immediately and returns the session object.

@@ -54,8 +54,8 @@ socket if anything else arrives first.
 ## Round lifecycle (shared by matchmaking and rooms)
 
 Both matchmaking matches and private-room matches run the same
-round state machine once two players are paired. `timeMode` (`1` or
-`2`, minutes) and the `themeId` for the round are decided upstream
+round state machine once two players are paired. `timeMode` (`2` or
+`4`, minutes) and the `themeId` for the round are decided upstream
 (randomly for matchmaking, per room config for rooms) before
 `round:start` fires.
 
@@ -77,7 +77,7 @@ stateDiagram-v2
     "type": "round:start",
     "snippetIndex": 2,          // server-authoritative, see Snippet identity contract below
     "themeId": "tokyoNight",    // ThemeId; server-authoritative
-    "timeMode": 2,               // 1 | 2 (minutes); server-authoritative
+    "timeMode": 4,               // 2 | 4 (minutes); server-authoritative
     "endsAt": 1757500000000      // epoch ms; server-authoritative round-end deadline
   }
   ```
@@ -172,7 +172,7 @@ stateDiagram-v2
 ```
 
 - **`queue:join`** — client -> server. No mode parameter: the server
-  randomly assigns 1-minute or 2-minute mode per match (each queued
+  randomly assigns 2-minute or 4-minute mode per match (each queued
   player doesn't pick, so pairing isn't constrained by mode preference).
   ```jsonc
   { "type": "queue:join" }
@@ -194,7 +194,7 @@ stateDiagram-v2
   of the queue. A `round:start` for match 1 follows immediately; there is
   no matchmaking equivalent of a room code or lobby.
   ```jsonc
-  { "type": "match:found", "opponentName": "ada", "timeMode": 1 }
+  { "type": "match:found", "opponentName": "ada", "timeMode": 2 }
   ```
 
 Matchmaking matches are single-round (no best-of-5, no `round:nextMatch`)
@@ -218,8 +218,8 @@ stateDiagram-v2
 - **`room:create`** — client -> server, creates a room and puts the
   creator in it waiting for an opponent.
   ```jsonc
-  { "type": "room:create", "timeMode": 2, "themeMode": "chosen" }
-  // timeMode: 1 | 2 (minutes); themeMode: 'random' | 'chosen'
+  { "type": "room:create", "timeMode": 4, "themeMode": "chosen" }
+  // timeMode: 2 | 4 (minutes); themeMode: 'random' | 'chosen'
   ```
 - **`room:created`** — server -> creator, with a short numeric code to
   share out-of-band with the intended opponent.
@@ -238,7 +238,7 @@ stateDiagram-v2
     "type": "room:joined",
     "code": 483920,
     "opponentName": "ada",
-    "timeMode": 2,
+    "timeMode": 4,
     "themeMode": "chosen"
   }
   ```

@@ -1,4 +1,5 @@
 import { tokenize } from '../engine/tokenizer';
+import { computeCategoryStats } from '../engine/categoryStats';
 import { CATEGORY_META, THEMES } from '../data/themes';
 import { SNIPPETS, pickRandomSnippetIndex } from '../data/snippets';
 import { easeOutCubic, hexToRgb, isValidHex, lerpRgb, rgbToHex } from '../engine/colorUtils';
@@ -50,6 +51,11 @@ export class ThemeGuessGame {
   private compareMode: CompareMode = 'yours';
   private lastTime = performance.now();
   private pickerOrigin: RGB | null = null;
+  /** Set by `enableExtendedPlay()`; once true, `updateProgress()` stops
+   * gating `revealBtn` on full category completion. Reset back to
+   * false by `build()`/`setTheme()` so every fresh round starts
+   * normally gated again. */
+  private extendedPlay = false;
 
   private tokens: Token[] = [];
   private lineCount = 1;
@@ -87,6 +93,7 @@ export class ThemeGuessGame {
   // ---------- setup ----------
 
   private build(): void {
+    this.extendedPlay = false;
     this.tokens = tokenize(SNIPPETS[this.snippetIndex]);
 
     this.lineCount = 1;
@@ -97,23 +104,17 @@ export class ThemeGuessGame {
       else { col += t.text.length; this.maxCols = Math.max(this.maxCols, col); }
     }
 
-    const counts: Partial<Record<CategoryId, number>> = {};
-    for (const t of this.tokens) {
-      if (t.type === 'whitespace' || t.type === 'newline' || t.type === 'identifier') continue;
-      counts[t.type] = (counts[t.type] ?? 0) + 1;
-    }
-    const maxCount = Math.max(1, ...Object.values(counts));
+    const { counts, weights } = computeCategoryStats(this.tokens);
 
     const theme = THEMES[this.themeId];
     const categories = {} as CategoryStateMap;
     for (const def of CATEGORY_META) {
-      const count = counts[def.id] ?? 0;
       const unset = def.id === 'background' ? UNSET_BG_RGB : UNSET_FG_RGB;
       categories[def.id] = {
         ...def,
         actualHex: theme.colors[def.id],
-        weight: def.id === 'background' ? maxCount : Math.max(count, 3),
-        count,
+        weight: weights[def.id],
+        count: counts[def.id],
         assignedHex: null,
         currentRgb: { ...unset },
         fromRgb: { ...unset },
@@ -152,6 +153,7 @@ export class ThemeGuessGame {
   // ---------- theme switching ----------
 
   setTheme(themeId: ThemeId): void {
+    this.extendedPlay = false;
     this.themeId = themeId;
     const theme = THEMES[themeId];
     for (const def of CATEGORY_META) {
@@ -350,7 +352,7 @@ export class ThemeGuessGame {
     const done = CATEGORY_META.filter((d) => this.categories[d.id].assignedHex).length;
     this.progressFill.style.width = `${(done / total) * 100}%`;
     this.progressLabel.textContent = `${done} / ${total} TOKEN KINDS THEMED`;
-    this.revealBtn.disabled = done < total;
+    this.revealBtn.disabled = !this.extendedPlay && done < total;
   }
 
   private resetColors(): void {
@@ -385,7 +387,14 @@ export class ThemeGuessGame {
 
   // ---------- scoring / reveal ----------
 
-  private reveal(): void {
+  /** Renders the score breakdown/verdict and shows the result modal.
+   * Normally wired to the Reveal button's click, but also called
+   * directly when a timed solo round's countdown reaches zero, so
+   * time running out actually resolves the round instead of leaving
+   * the player stuck on an un-revealed board. Safe to call more than
+   * once (e.g. a manual reveal followed by the timer expiring) — it
+   * just re-renders the same result. */
+  reveal(): void {
     const { overall, rows } = computeMatchResult(this.categories);
 
     renderBreakdown(this.breakdownEl, rows);
@@ -395,6 +404,24 @@ export class ThemeGuessGame {
     this.resultModal.classList.remove('hidden');
     sound.playReveal(overall);
     if (overall >= 75) this.fx.spawnConfetti(160, this.width);
+  }
+
+  /** Permanently unlocks `revealBtn` for the rest of the current round
+   * (until the next `build()`/`setTheme()` resets it) — called once the
+   * player chooses to keep tweaking colors after an initial reveal
+   * ("Keep Comparing"), so re-revealing after a small tweak doesn't
+   * require re-filling every category from scratch. */
+  enableExtendedPlay(): void {
+    this.extendedPlay = true;
+    this.updateProgress();
+  }
+
+  /** True once every category has a player-assigned color — the ground
+   * truth `BotMatch` polls (rather than shadowing it with its own
+   * tracking, which `resetColors()` wouldn't invalidate) to gate the
+   * Reveal button on both the player and the bot having finished. */
+  isFullyAssigned(): boolean {
+    return CATEGORY_META.every((def) => this.categories[def.id].assignedHex !== null);
   }
 
   // ---------- render loop ----------

@@ -169,8 +169,8 @@ export function createPrivateRoomFlow(
             <div class="solo-config-group">
               <p class="solo-config-label">⏱ TIME</p>
               <div class="solo-radio-row">
-                <label class="solo-radio"><input type="radio" name="pr-time-mode" value="1" checked />1 MIN</label>
-                <label class="solo-radio"><input type="radio" name="pr-time-mode" value="2" />2 MIN</label>
+                <label class="solo-radio"><input type="radio" name="pr-time-mode" value="2" checked />2 MIN</label>
+                <label class="solo-radio"><input type="radio" name="pr-time-mode" value="4" />4 MIN</label>
               </div>
             </div>
             <div class="solo-config-group">
@@ -190,7 +190,7 @@ export function createPrivateRoomFlow(
           render({ kind: 'hidden' });
         });
         mount.querySelector('[data-action="submit"]')!.addEventListener('click', () => {
-          const timeMode = Number(radioValue(mount, 'pr-time-mode', '1')) as TimeMode;
+          const timeMode = Number(radioValue(mount, 'pr-time-mode', '2')) as TimeMode;
           const themeMode = radioValue(mount, 'pr-theme-mode', 'random') as ThemeMode;
           client.send({ type: 'room:create', timeMode, themeMode });
         });

@@ -15,12 +15,12 @@
  * `endsAt` passes — multiplayer uses it to trigger the local player's
  * `round:submit` without polling `startCountdown`'s return value. */
 export type TimerHudOptions =
-  | { timeMode: 1 | 2; endsAt: number; onExpire?: () => void }
+  | { timeMode: 2 | 4; endsAt: number; onExpire?: () => void }
   | { timeMode: 'none'; endsAt?: null };
 
-const TIME_MODE_LABEL: Record<1 | 2 | 'none', string> = {
-  1: '1 MIN',
+const TIME_MODE_LABEL: Record<2 | 4 | 'none', string> = {
   2: '2 MIN',
+  4: '4 MIN',
   none: 'NO LIMIT',
 };
 
@@ -50,7 +50,7 @@ function elapsedMarkup(): string {
     </div>`;
 }
 
-/** Renders the mode badge + (for 1/2-minute modes) progress bar + mm:ss
+/** Renders the mode badge + (for 2/4-minute modes) progress bar + mm:ss
  * readout into `container`, and starts driving it from `options.endsAt`
  * via requestAnimationFrame. Returns a `stop()` that cancels the animation
  * loop; call it on round end/teardown to avoid leaking the RAF handle. */

@@ -1,6 +1,6 @@
 import { rgbToHex } from '../engine/colorUtils';
 import type { ParticleSystem } from '../engine/particles';
-import type { CategoryId, CategoryStateMap, Token } from '../types';
+import type { CategoryId, CategoryStateMap, RGB, Token } from '../types';
 import { FONT_SIZE, FONT_STACK, GUTTER, LINE_HEIGHT, PAD } from './layoutConstants';
 
 /** Everything one frame of the code canvas needs to draw itself. Kept
@@ -75,9 +75,11 @@ export const OPPONENT_ASSIGNED_HEX = '#5fd75f';
 export const OPPONENT_UNASSIGNED_HEX = '#3a3a52';
 
 /** Everything one frame of the opponent-progress canvas needs. Deliberately
- * narrower than `RenderState`: no per-category colors, no gradients/pulse
- * animation, no particles — just which `CategoryId`s are "assigned" so far.
- * Kept DOM-free like `drawFrame`. */
+ * narrower than `RenderState`: no gradient pulse or particles, and only
+ * ever a lerp between the two flat opponent-progress colors above — but
+ * (unlike a plain binary signal) `currentRgb` carries `OpponentView`'s
+ * in-flight per-category animation state, one entry per `CategoryId`
+ * including 'background'. Kept DOM-free like `drawFrame`. */
 export interface OpponentRenderState {
   ctx: CanvasRenderingContext2D;
   width: number;
@@ -85,18 +87,20 @@ export interface OpponentRenderState {
   charWidth: number;
   lineCount: number;
   tokens: Token[];
-  assigned: ReadonlySet<CategoryId>;
+  currentRgb: Record<CategoryId, RGB>;
 }
 
-/** Draws the same snippet as `drawFrame`, but every category is either
- * flat `OPPONENT_ASSIGNED_HEX` or flat `OPPONENT_UNASSIGNED_HEX` — an
- * instant swap with no transition, since this pane only ever receives a
- * binary per-category signal. */
+/** Draws the same snippet as `drawFrame`, but every category is a flat
+ * `OPPONENT_UNASSIGNED_HEX`-to-`OPPONENT_ASSIGNED_HEX` fill driven by
+ * `state.currentRgb` — `OpponentView` animates that lerp the same way
+ * `ThemeGuessGame` animates the player's own canvas (see
+ * `layoutConstants.TRANSITION_MS`), just always between those two flat
+ * colors instead of an arbitrary chosen hex. */
 export function drawOpponentFrame(state: OpponentRenderState, _now: number): void {
   const { ctx } = state;
   ctx.clearRect(0, 0, state.width, state.height);
 
-  ctx.fillStyle = state.assigned.has('background') ? OPPONENT_ASSIGNED_HEX : OPPONENT_UNASSIGNED_HEX;
+  ctx.fillStyle = rgbToHex(state.currentRgb.background);
   ctx.fillRect(0, 0, state.width, state.height);
 
   ctx.fillStyle = 'rgba(0,0,0,.16)';
@@ -122,7 +126,7 @@ export function drawOpponentFrame(state: OpponentRenderState, _now: number): voi
     ctx.font = t.type === 'comment'
       ? `italic ${FONT_SIZE}px ${FONT_STACK}`
       : `${FONT_SIZE}px ${FONT_STACK}`;
-    ctx.fillStyle = state.assigned.has(cat) ? OPPONENT_ASSIGNED_HEX : OPPONENT_UNASSIGNED_HEX;
+    ctx.fillStyle = rgbToHex(state.currentRgb[cat]);
     ctx.strokeText(t.text, x, y);
     ctx.fillText(t.text, x, y);
   }

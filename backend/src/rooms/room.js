@@ -159,7 +159,7 @@ export function registerRoomHandlers() {
     if (!ownerId) return;
 
     const { timeMode, themeMode } = message;
-    if (timeMode !== 1 && timeMode !== 2) return;
+    if (timeMode !== 2 && timeMode !== 4) return;
     if (themeMode !== 'random' && themeMode !== 'chosen') return;
 
     const code = generateCode();

@@ -1,13 +1,29 @@
 import { tokenize } from '../engine/tokenizer';
 import { SNIPPETS, pickRandomSnippetIndex } from '../data/snippets';
-import type { CategoryId, Token } from '../types';
-import { FONT_SIZE, FONT_STACK, GUTTER, LINE_HEIGHT, PAD } from './layoutConstants';
-import { drawOpponentFrame } from './renderer';
+import { CATEGORY_META } from '../data/themes';
+import { easeOutCubic, hexToRgb, lerpRgb } from '../engine/colorUtils';
+import type { CategoryId, RGB, Token } from '../types';
+import { FONT_SIZE, FONT_STACK, GUTTER, LINE_HEIGHT, PAD, TRANSITION_MS } from './layoutConstants';
+import { drawOpponentFrame, OPPONENT_ASSIGNED_HEX, OPPONENT_UNASSIGNED_HEX } from './renderer';
 
 function requireEl<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
   if (!el) throw new Error(`Missing required element #${id}`);
   return el as T;
+}
+
+const UNASSIGNED_RGB = hexToRgb(OPPONENT_UNASSIGNED_HEX);
+const ASSIGNED_RGB = hexToRgb(OPPONENT_ASSIGNED_HEX);
+
+/** One category's animated fill — a lerp from `from` to `to`, eased and
+ * timed exactly like `ThemeGuessGame`'s own `CategoryState.currentRgb`
+ * (see `layoutConstants.TRANSITION_MS`), except `to` is always either
+ * `UNASSIGNED_RGB` or `ASSIGNED_RGB`: never a real opponent-chosen hex. */
+interface FillState {
+  current: RGB;
+  from: RGB;
+  to: RGB;
+  start: number;
 }
 
 /**
@@ -19,13 +35,20 @@ function requireEl<T extends HTMLElement>(id: string): T {
  * only ever accepts a `CategoryId`, so a real opponent-chosen hex has no
  * path into this view by construction.
  *
- * Mirrors `ThemeGuessGame`'s canvas-ownership pattern, but far simpler:
- * no picker, no clicks, no animation loop — every redraw is a flat,
- * instant swap (see `drawOpponentFrame`).
+ * Mirrors `ThemeGuessGame`'s canvas-ownership pattern closely: no picker,
+ * no clicks, but the same perpetual `requestAnimationFrame` loop easing
+ * each category's flat color in (see `FillState`), and the same
+ * "mutate state, let the loop pick it up next frame" convention — none
+ * of `setSnippet`/`markAssigned`/`reset` draw synchronously.
+ *
+ * Also owns the "opponent finished" banner: once every category has been
+ * marked assigned, `#opponent-complete-banner` is shown until the next
+ * `reset`/`setSnippet`.
  */
 export class OpponentView {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
+  private readonly completeBanner = requireEl<HTMLElement>('opponent-complete-banner');
 
   private snippetIndex: number;
   private tokens: Token[] = [];
@@ -35,12 +58,15 @@ export class OpponentView {
   private width = 0;
   private height = 0;
   private assigned = new Set<CategoryId>();
+  private fills = {} as Record<CategoryId, FillState>;
 
   constructor(canvasId: string, snippetIndex: number = pickRandomSnippetIndex()) {
     this.canvas = requireEl<HTMLCanvasElement>(canvasId);
     this.ctx = this.canvas.getContext('2d')!;
     this.snippetIndex = snippetIndex;
+    this.resetFills();
     this.build();
+    requestAnimationFrame((t) => this.loop(t));
   }
 
   /** Forces a specific snippet (by stable `SNIPPETS` index) and clears
@@ -49,22 +75,42 @@ export class OpponentView {
   setSnippet(index: number): void {
     this.snippetIndex = index;
     this.assigned = new Set();
+    this.resetFills();
+    this.completeBanner.classList.add('hidden');
     this.build();
   }
 
-  /** Marks one category as assigned by the opponent and redraws. Takes
-   * only a `CategoryId` — never a color — so there is no code path for
-   * an opponent's real chosen hex to reach this view. */
+  /** Marks one category as assigned by the opponent and starts its
+   * fade-to-green transition. Takes only a `CategoryId` — never a
+   * color — so there is no code path for an opponent's real chosen hex
+   * to reach this view. Shows the "opponent finished" banner once every
+   * category has been marked. Idempotent per category, so a duplicate
+   * `round:progress` can't restart an in-flight fade. */
   markAssigned(categoryId: CategoryId): void {
+    if (this.assigned.has(categoryId)) return;
     this.assigned.add(categoryId);
-    this.draw();
+
+    const fill = this.fills[categoryId];
+    fill.from = fill.current;
+    fill.to = { ...ASSIGNED_RGB };
+    fill.start = performance.now();
+
+    if (this.assigned.size === CATEGORY_META.length) this.completeBanner.classList.remove('hidden');
   }
 
-  /** Clears every progress signal for reuse across matches, without
-   * touching the current snippet/layout. */
+  /** Clears every progress signal (and the finished banner) for reuse
+   * across matches, without touching the current snippet/layout. */
   reset(): void {
     this.assigned = new Set();
-    this.draw();
+    this.resetFills();
+    this.completeBanner.classList.add('hidden');
+  }
+
+  private resetFills(): void {
+    this.fills = {} as Record<CategoryId, FillState>;
+    for (const def of CATEGORY_META) {
+      this.fills[def.id] = { current: { ...UNASSIGNED_RGB }, from: { ...UNASSIGNED_RGB }, to: { ...UNASSIGNED_RGB }, start: 0 };
+    }
   }
 
   private build(): void {
@@ -79,7 +125,6 @@ export class OpponentView {
     }
 
     this.setupCanvasSize();
-    this.draw();
   }
 
   private setupCanvasSize(): void {
@@ -95,7 +140,26 @@ export class OpponentView {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  private draw(): void {
+  private loop(now: number): void {
+    this.tickFills(now);
+    this.draw(now);
+    requestAnimationFrame((t) => this.loop(t));
+  }
+
+  private tickFills(now: number): void {
+    for (const def of CATEGORY_META) {
+      const fill = this.fills[def.id];
+      if (!fill.start) continue;
+      const p = Math.min(1, (now - fill.start) / TRANSITION_MS);
+      fill.current = lerpRgb(fill.from, fill.to, easeOutCubic(p));
+      if (p >= 1) fill.start = 0;
+    }
+  }
+
+  private draw(now: number): void {
+    const currentRgb = {} as Record<CategoryId, RGB>;
+    for (const def of CATEGORY_META) currentRgb[def.id] = this.fills[def.id].current;
+
     drawOpponentFrame({
       ctx: this.ctx,
       width: this.width,
@@ -103,7 +167,7 @@ export class OpponentView {
       charWidth: this.charWidth,
       lineCount: this.lineCount,
       tokens: this.tokens,
-      assigned: this.assigned,
-    }, performance.now());
+      currentRgb,
+    }, now);
   }
 }

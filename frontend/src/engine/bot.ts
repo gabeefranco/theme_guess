@@ -7,7 +7,7 @@ import type { CategoryId, RGB } from '../types';
 import { hexToRgb, rgbToHex, lerpRgb, similarityFromHex } from './colorUtils';
 
 export type BotDifficulty = 'easy' | 'medium' | 'hard';
-export type BotTimeMode = '1min' | '2min' | 'none';
+export type BotTimeMode = '2min' | '4min' | 'none';
 
 export interface BotCategoryInput {
   id: CategoryId;
@@ -33,7 +33,7 @@ export interface BotPick {
 // Pacing
 // ---------------------------------------------------------------------------
 
-/** 1-minute mode collapses to the 'short' band, 2-minute and no-limit both
+/** 2-minute mode collapses to the 'short' band, 4-minute and no-limit both
  * get the more generous 'long' band (same target pace either way — a
  * countdown vs. no countdown doesn't change how "fast" the bot thinks). */
 type TimeBand = 'short' | 'long';
@@ -54,13 +54,13 @@ interface TimeModeConfig {
 const DEADLINE_SAFETY_MARGIN_MS = 1_500;
 
 const TIME_MODE_CONFIG: Record<BotTimeMode, TimeModeConfig> = {
-  // ~55s target, ±4s jitter -> finishes 51-59s, safely under the 60s cap.
-  '1min': { targetMs: 55_000, jitterMs: 4_000, deadlineMs: 60_000 },
-  // ~1m45s target, ±5s jitter -> finishes 100-110s, safely under the 120s cap.
-  '2min': { targetMs: 105_000, jitterMs: 5_000, deadlineMs: 120_000 },
-  // Same ~1m45s target as 2-minute mode (no deadline to clamp against, but
+  // ~1m50s target, ±8s jitter -> finishes 102-118s, safely under the 120s cap.
+  '2min': { targetMs: 110_000, jitterMs: 8_000, deadlineMs: 120_000 },
+  // ~3m30s target, ±10s jitter -> finishes 200-220s, safely under the 240s cap.
+  '4min': { targetMs: 210_000, jitterMs: 10_000, deadlineMs: 240_000 },
+  // Same ~3m30s target as 4-minute mode (no deadline to clamp against, but
   // no reason for the bot to pace itself any differently).
-  none: { targetMs: 105_000, jitterMs: 5_000, deadlineMs: null },
+  none: { targetMs: 210_000, jitterMs: 10_000, deadlineMs: null },
 };
 
 /** Splits `totalMs` into `n` ascending pick times that sum to totalMs, with
@@ -162,7 +162,7 @@ function pickHex(targetHex: string, difficulty: BotDifficulty, timeMode: BotTime
   if (timeMode === 'none' && Math.random() < NO_LIMIT_PERFECT_CHANCE) {
     return targetHex;
   }
-  const band: TimeBand = timeMode === '1min' ? 'short' : 'long';
+  const band: TimeBand = timeMode === '2min' ? 'short' : 'long';
   const ceiling = ACCURACY_CEILING[difficulty][band];
   const floor = Math.max(5, ceiling - ACCURACY_SPREAD[difficulty]);
   const desiredSimilarity = floor + Math.random() * (ceiling - floor);

@@ -4,17 +4,21 @@
 // two-column scoreboard `MultiplayerMatch` uses once the round ends.
 //
 // Mirrors `multiplayerMatch.ts`'s shape and two-phase-init convention —
-// `ThemeGuessGame` has no knowledge of this module either: `soloConfigFlow`
-// supplies its `onCategoryAssigned` constructor callback and routes it into
-// `BotMatch.handleLocalAssignment`, exactly like `MultiplayerMatch` docs
-// describe. The one structural difference: there is no server, so this
-// module also decides *when* the round ends (timer deadline, or — in
-// no-limit mode, which has no deadline — once the bot's schedule has fully
-// played out and the player has manually revealed via the existing Reveal
-// button, matching how `ThemeGuessGame.reveal()` stays manually triggered
-// for solo play in every time mode).
+// `ThemeGuessGame` has no knowledge of this module's existence (it never
+// imports `BotMatch`): `soloConfigFlow` supplies its `onCategoryAssigned`
+// constructor callback and routes it into `BotMatch.handleLocalAssignment`,
+// exactly like `MultiplayerMatch` docs describe, and separately binds the
+// shared instance itself via `bindGame` so the Reveal button can be gated
+// on the ground-truth `isFullyAssigned()` (see `syncRevealAvailability`)
+// instead of shadowing that state locally. The one structural difference
+// from multiplayer: there is no server, so this module also decides
+// *when* the round ends — the timed modes' deadline, same as always, or
+// (in any mode) as soon as both the bot's schedule has fully played out
+// and the player has manually revealed via the Reveal button, which
+// `syncRevealAvailability` keeps disabled until exactly that point.
 
 import { tokenize } from '../engine/tokenizer';
+import { computeCategoryStats } from '../engine/categoryStats';
 import { rgbToHex } from '../engine/colorUtils';
 import { computeBotSchedule } from '../engine/bot';
 import type { BotDifficulty, BotPick, BotTimeMode } from '../engine/bot';
@@ -26,6 +30,7 @@ import { computeMatchResult } from './scoring';
 import { renderMultiplayerResult } from './resultView';
 import type { MultiplayerResultElements } from './resultView';
 import { OpponentView } from './opponentView';
+import type { ThemeGuessGame } from './ThemeGuessGame';
 
 function requireEl<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -58,25 +63,17 @@ function buildCategoryStateMap(
   themeId: ThemeId,
   colors: Record<CategoryId, string>,
 ): CategoryStateMap {
-  const tokens = tokenize(SNIPPETS[snippetIndex]);
-  const counts: Partial<Record<CategoryId, number>> = {};
-  for (const t of tokens) {
-    if (t.type === 'whitespace' || t.type === 'newline' || t.type === 'identifier') continue;
-    const id = t.type as CategoryId;
-    counts[id] = (counts[id] ?? 0) + 1;
-  }
-  const maxCount = Math.max(1, ...Object.values(counts));
+  const { counts, weights } = computeCategoryStats(tokenize(SNIPPETS[snippetIndex]));
   const theme = THEMES[themeId];
 
   const categories = {} as CategoryStateMap;
   for (const def of CATEGORY_META) {
-    const count = counts[def.id] ?? 0;
     const unset = def.id === 'background' ? UNSET_BG_RGB : UNSET_FG_RGB;
     categories[def.id] = {
       ...def,
       actualHex: theme.colors[def.id],
-      weight: def.id === 'background' ? maxCount : Math.max(count, 3),
-      count,
+      weight: weights[def.id],
+      count: counts[def.id],
       assignedHex: colors[def.id] ?? null,
       currentRgb: { ...unset },
       fromRgb: { ...unset },
@@ -95,8 +92,8 @@ function buildCategoryStateMap(
  * (see `multiplayerMatch.ts` vs `ThemeGuessGame.ts`'s category-map
  * builders). No-limit mode has no deadline, so no entry here. */
 const ROUND_DEADLINE_MS: Record<Exclude<BotTimeMode, 'none'>, number> = {
-  '1min': 60_000,
   '2min': 120_000,
+  '4min': 240_000,
 };
 
 export interface BotMatchConfig {
@@ -131,6 +128,8 @@ export class BotMatch {
   };
   private readonly revealBtn = requireEl<HTMLButtonElement>('reveal-btn');
 
+  private game: ThemeGuessGame | null = null;
+
   private opponentView: OpponentView | null = null;
   private schedule: BotPick[] = [];
   private pickTimeoutIds: number[] = [];
@@ -139,7 +138,6 @@ export class BotMatch {
 
   private themeId: ThemeId | null = null;
   private snippetIndex: number | null = null;
-  private timeMode: BotTimeMode = 'none';
   private localColors: Partial<Record<CategoryId, string>> = {};
 
   private ended = true;
@@ -150,14 +148,25 @@ export class BotMatch {
     this.revealBtn.addEventListener('click', this.onRevealClick);
   }
 
+  /** Binds the shared `ThemeGuessGame` this match's Reveal-button gating
+   * polls — see `syncRevealAvailability`. Must be called before `start`;
+   * `soloConfigFlow` does this right after every `getSharedGame` call,
+   * bot round or not, since it's a harmless no-op while `ended`. */
+  bindGame(game: ThemeGuessGame): void {
+    this.game = game;
+  }
+
   /** `ThemeGuessGame`'s `onCategoryAssigned` callback target: tracks the
-   * local player's running color map for the eventual scoreboard. A
-   * no-op once the round has already ended (or before one has started),
-   * so it's safe to wire unconditionally regardless of the currently
-   * selected solo opponent. */
+   * local player's running color map for the eventual scoreboard, and
+   * re-syncs Reveal-button availability (the player finishing their own
+   * board is one of the two conditions it's gated on — see
+   * `syncRevealAvailability`). A no-op once the round has already ended
+   * (or before one has started), so it's safe to wire unconditionally
+   * regardless of the currently selected solo opponent. */
   handleLocalAssignment(id: CategoryId, hex: string): void {
     if (this.ended) return;
     this.localColors[id] = hex;
+    this.syncRevealAvailability();
   }
 
   /** Starts one bot round: shows the split-view pane, (re)builds the
@@ -173,7 +182,6 @@ export class BotMatch {
     this.localColors = {};
     this.themeId = config.themeId;
     this.snippetIndex = config.snippetIndex;
-    this.timeMode = config.timeMode;
 
     this.splitView.classList.remove('hidden');
     if (!this.opponentView) {
@@ -185,6 +193,7 @@ export class BotMatch {
 
     this.resultModal.classList.add('hidden');
     this.mpScoreboard.classList.add('hidden');
+    this.syncRevealAvailability();
 
     const theme = THEMES[config.themeId];
     const categories = CATEGORY_META.map((def) => ({ id: def.id, hex: theme.colors[def.id] }));
@@ -201,7 +210,8 @@ export class BotMatch {
         this.remainingPicks -= 1;
         if (this.remainingPicks === 0) {
           this.botFinished = true;
-          this.maybeEndNoLimitRound();
+          this.syncRevealAvailability();
+          this.maybeEndRound();
         }
       }, pick.atMs);
       this.pickTimeoutIds.push(timeoutId);
@@ -220,17 +230,31 @@ export class BotMatch {
     this.splitView.classList.add('hidden');
   }
 
+  /** Reveal is only ever enabled while a bot round is live and both
+   * sides have finished — the player's own board (per `ThemeGuessGame`'s
+   * ground-truth `isFullyAssigned`, not `localColors`, so a mid-round
+   * `resetColors()` can't leave this stuck enabled) and the bot's
+   * schedule. Runs after every local assignment and the bot's final
+   * pick — the two events that can flip either half of the condition. */
+  private syncRevealAvailability(): void {
+    if (this.ended) return;
+    const playerDone = this.game?.isFullyAssigned() ?? false;
+    this.revealBtn.disabled = !(playerDone && this.botFinished);
+  }
+
   private readonly onRevealClick = (): void => {
     this.playerRevealed = true;
-    this.maybeEndNoLimitRound();
+    this.maybeEndRound();
   };
 
-  /** No-limit mode has no deadline, so it ends only once both the bot's
-   * schedule has fully played out and the player has manually revealed
-   * (the existing Reveal button, same manual-trigger convention solo
-   * play already uses in every time mode). */
-  private maybeEndNoLimitRound(): void {
-    if (this.timeMode === 'none' && this.playerRevealed && this.botFinished) this.endRound();
+  /** Ends the round as soon as both sides are done and the player has
+   * manually revealed — the Reveal button is disabled until exactly
+   * that point (see `syncRevealAvailability`), so this fires the moment
+   * it's clicked, timed mode or not, instead of making the player wait
+   * out a deadline neither side needs anymore. A timed round whose
+   * deadline arrives first still ends itself via `endRound` regardless. */
+  private maybeEndRound(): void {
+    if (this.playerRevealed && this.botFinished) this.endRound();
   }
 
   private endRound(): void {

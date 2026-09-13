@@ -61,7 +61,7 @@ function tryMatch() {
     const playerAId = popOldestWaiting();
     const playerBId = popOldestWaiting();
 
-    const timeMode = Math.random() < 0.5 ? 1 : 2;
+    const timeMode = Math.random() < 0.5 ? 2 : 4;
     const themeId = pickRandomThemeId();
 
     activeMatchmakingPlayerIds.add(playerAId);

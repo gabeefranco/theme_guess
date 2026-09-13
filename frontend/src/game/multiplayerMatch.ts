@@ -23,6 +23,7 @@
 // wiring so it's ready for #14/#15 to pass in.
 
 import { tokenize } from '../engine/tokenizer';
+import { computeCategoryStats } from '../engine/categoryStats';
 import { rgbToHex } from '../engine/colorUtils';
 import { CATEGORY_META, THEMES } from '../data/themes';
 import { SNIPPETS } from '../data/snippets';
@@ -74,25 +75,17 @@ function buildCategoryStateMap(
   themeId: ThemeId,
   colors: Record<CategoryId, string>,
 ): CategoryStateMap {
-  const tokens = tokenize(SNIPPETS[snippetIndex]);
-  const counts: Partial<Record<CategoryId, number>> = {};
-  for (const t of tokens) {
-    if (t.type === 'whitespace' || t.type === 'newline' || t.type === 'identifier') continue;
-    const id = t.type as CategoryId;
-    counts[id] = (counts[id] ?? 0) + 1;
-  }
-  const maxCount = Math.max(1, ...Object.values(counts));
+  const { counts, weights } = computeCategoryStats(tokenize(SNIPPETS[snippetIndex]));
   const theme = THEMES[themeId];
 
   const categories = {} as CategoryStateMap;
   for (const def of CATEGORY_META) {
-    const count = counts[def.id] ?? 0;
     const unset = def.id === 'background' ? UNSET_BG_RGB : UNSET_FG_RGB;
     categories[def.id] = {
       ...def,
       actualHex: theme.colors[def.id],
-      weight: def.id === 'background' ? maxCount : Math.max(count, 3),
-      count,
+      weight: weights[def.id],
+      count: counts[def.id],
       assignedHex: colors[def.id] ?? null,
       currentRgb: { ...unset },
       fromRgb: { ...unset },

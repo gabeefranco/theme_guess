@@ -78,9 +78,13 @@ export function deltaE76(labA: Lab, labB: Lab): number {
 }
 
 // 100 at identical colors, decaying smoothly as perceptual distance grows.
+// Divisor tuned so a genuinely close guess (small hue/tone miss, dE~15-20)
+// lands around 75-85% while a clearly wrong one (opposite lightness or
+// hue, dE~80+) stays well under half — see `computeCategoryStats` for
+// the other half of "off/inconsistent" scores: per-category weighting.
 export function similarityFromHex(hexA: string | null, hexB: string): number {
   if (!hexA) return 0;
   const dE = deltaE76(hexToLab(hexA), hexToLab(hexB));
-  const sim = 100 * Math.exp(-dE / 45);
+  const sim = 100 * Math.exp(-dE / 50);
   return Math.max(0, Math.min(100, sim));
 }

@@ -1,8 +1,13 @@
 import { THEMES } from '../data/themes';
 import { pickRandomSnippetIndex } from '../data/snippets';
 import type { BotDifficulty, BotTimeMode } from '../engine/bot';
+import { sound } from '../engine/sound';
 import { BotMatch } from '../game/botMatch';
-import type { CategoryId, ThemeId } from '../types';
+import { getSharedGame } from '../game/sharedGame';
+import type { ThemeGuessGame } from '../game/ThemeGuessGame';
+import type { ThemeId } from '../types';
+import type { PreviewFlowElements } from './previewFlow';
+import { runThemePreview } from './previewFlow';
 import type { ThemeGrid } from './themeGrid';
 
 /** Reuses `engine/bot`'s time-mode vocabulary so a solo config can be
@@ -16,6 +21,7 @@ export interface SoloConfig {
   themeId: ThemeId;
   snippetIndex: number;
   timeMode: SoloTimeMode;
+  themeMode: SoloThemeMode;
   opponent: SoloOpponent;
   botDifficulty: BotDifficulty;
 }
@@ -31,33 +37,36 @@ export interface SoloConfigFlowElements {
   botDifficultyWrap: HTMLElement;
   playBtn: HTMLButtonElement;
   /** Empty mount point (outside the menu modal) the inline timer/mode
-   * badge HUD renders itself into. */
+   * badge/quit-button HUD renders itself into. */
   timerMount: HTMLElement;
+  /** Topbar badge showing the active theme's name. */
+  themeNameBadge: HTMLElement;
+  /** Mounts for the pre-round "flash the real theme" overlay. */
+  preview: PreviewFlowElements;
 }
 
-export interface SoloConfigFlow {
-  /** Starts the inline countdown/elapsed-time HUD for a just-started
-   * round. Call once the round is actually live (e.g. after the theme
-   * preview finishes), not at Play-click time. Also the "round is live"
-   * signal this module uses internally to start (or, for 'Alone',
-   * tear down) the bot opponent's split-view pane — see `handleLocalAssignment`. */
-  startTimer(mode: SoloTimeMode): void;
-  /** `ThemeGuessGame`'s `onCategoryAssigned` callback target. Wire this
-   * once, at the game's first construction (see `MultiplayerMatch`'s
-   * two-phase-init doc for the pattern this mirrors) — it's a stable
-   * dispatch that forwards to whichever bot round `startTimer` most
-   * recently started, and is a no-op for 'Alone' rounds. */
-  handleLocalAssignment(id: CategoryId, hex: string): void;
+export interface SoloConfigFlowHooks {
+  /** Hides every top-level overlay so the board is visible. */
+  hideMenu: () => void;
+  /** Shows the main menu (also hides the result modal, if open — see
+   * main.ts's `showView`). */
+  showMenu: () => void;
+}
+
+function requireEl<T extends HTMLElement>(id: string): T {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`Missing required element #${id}`);
+  return el as T;
 }
 
 const TIME_MODE_DEADLINE_MS: Record<Exclude<SoloTimeMode, 'none'>, number> = {
-  '1min': 60_000,
   '2min': 120_000,
+  '4min': 240_000,
 };
 
 const TIME_MODE_LABEL: Record<SoloTimeMode, string> = {
-  '1min': '1 MIN',
   '2min': '2 MIN',
+  '4min': '4 MIN',
   none: 'NO LIMIT',
 };
 
@@ -76,21 +85,33 @@ function checkedValue<T extends string>(inputs: HTMLInputElement[], fallback: T)
   return (inputs.find((input) => input.checked)?.value as T | undefined) ?? fallback;
 }
 
-/** Minimal inline countdown (1/2 minute modes) or elapsed-time counter
- * ("no limit") plus a mode badge, rendered into `mount`. Purely a
- * display: it never forces a reveal, since `ThemeGuessGame.reveal()`
- * stays manually triggered by the existing Reveal button in every time
- * mode, "no limit" included.
+interface TimerHud {
+  /** Starts (or restarts) the countdown/elapsed-time display. `onExpire`,
+   * on the two clocked modes only, fires exactly once when the countdown
+   * reaches zero. */
+  start(mode: SoloTimeMode, onExpire?: () => void): void;
+  /** Stops the ticking interval without hiding the HUD. */
+  stop(): void;
+  /** Stops and hides the whole HUD (including the quit button). */
+  hide(): void;
+}
+
+/** Minimal inline countdown (2/4 minute modes) or elapsed-time counter
+ * ("no limit") plus a mode badge and an always-available Quit button,
+ * rendered into `mount`.
  * TODO: replace with shared timerHud module once available. */
-function createTimerHud(mount: HTMLElement): SoloConfigFlow['startTimer'] {
+function createTimerHud(mount: HTMLElement, onQuit: () => void): TimerHud {
   mount.innerHTML = `
     <div class="solo-timer-hud hidden">
       <span class="solo-timer-badge"></span>
       <span class="solo-timer-clock">00:00</span>
+      <button type="button" class="solo-timer-quit btn danger small">✕ Quit</button>
     </div>`;
   const root = mount.querySelector<HTMLElement>('.solo-timer-hud')!;
   const badge = mount.querySelector<HTMLElement>('.solo-timer-badge')!;
   const clock = mount.querySelector<HTMLElement>('.solo-timer-clock')!;
+  const quitBtn = mount.querySelector<HTMLButtonElement>('.solo-timer-quit')!;
+  quitBtn.addEventListener('click', onQuit);
   let intervalId: number | null = null;
 
   function stop(): void {
@@ -100,7 +121,7 @@ function createTimerHud(mount: HTMLElement): SoloConfigFlow['startTimer'] {
     }
   }
 
-  return function startTimer(mode: SoloTimeMode): void {
+  function start(mode: SoloTimeMode, onExpire?: () => void): void {
     stop();
     root.classList.remove('hidden');
     badge.textContent = TIME_MODE_LABEL[mode];
@@ -113,31 +134,52 @@ function createTimerHud(mount: HTMLElement): SoloConfigFlow['startTimer'] {
         return;
       }
       const remaining = TIME_MODE_DEADLINE_MS[mode] - elapsed;
-      clock.textContent = formatClock(remaining);
-      if (remaining <= 0) stop();
+      clock.textContent = formatClock(Math.max(0, remaining));
+      if (remaining <= 0) {
+        stop();
+        onExpire?.();
+      }
     }
 
     tick();
     intervalId = window.setInterval(tick, 250);
-  };
+  }
+
+  function hide(): void {
+    stop();
+    root.classList.add('hidden');
+  }
+
+  return { start, stop, hide };
 }
 
 /** Wires the Solo menu section's config form (time mode / theme mode /
  * opponent, with the theme grid and bot difficulty picker revealed
- * conditionally) and its inline timer HUD. Fires `onStart` with the
- * resolved config once the player clicks Play. */
+ * conditionally), its inline timer/quit HUD, and every shared
+ * result-modal button ("Keep Comparing" / "Play Again") for as long as a
+ * solo round is the thing driving the shared board — see `soloActive`. */
 export function createSoloConfigFlow(
   elements: SoloConfigFlowElements,
   themeGrid: ThemeGrid,
-  onStart: (config: SoloConfig) => void,
-): SoloConfigFlow {
+  hooks: SoloConfigFlowHooks,
+): void {
   const themeModeInputs = radios(elements.section, 'solo-theme-mode');
   const opponentInputs = radios(elements.section, 'solo-opponent-mode');
   const timeModeInputs = radios(elements.section, 'solo-time-mode');
   const botDifficultyInputs = radios(elements.section, 'solo-bot-difficulty');
-  const startTimerHud = createTimerHud(elements.timerMount);
+  const closeResultBtn = requireEl<HTMLButtonElement>('close-result-btn');
+  const playAgainBtn = requireEl<HTMLButtonElement>('play-again-btn');
   const botMatch = new BotMatch();
+
   let lastConfig: SoloConfig | null = null;
+  let activeGame: ThemeGuessGame | null = null;
+  /** True from the moment a solo round starts until the player quits —
+   * guards the shared, page-global result-modal buttons and the Quit
+   * button so a stale click from a leftover matchmaking/private-room
+   * result doesn't reroute solo state, and vice versa. */
+  let soloActive = false;
+
+  const timerHud = createTimerHud(elements.timerMount, quit);
 
   function syncThemePicker(): void {
     const mode = checkedValue<SoloThemeMode>(themeModeInputs, 'random');
@@ -154,8 +196,42 @@ export function createSoloConfigFlow(
   syncThemePicker();
   syncBotDifficulty();
 
+  /** Starts (or restarts) a live round from a fully-resolved config:
+   * flashes the theme preview, then swaps the shared `ThemeGuessGame`
+   * onto it, arms the timer HUD, and starts/stops the bot opponent. */
+  function beginRound(config: SoloConfig): void {
+    lastConfig = config;
+    soloActive = true;
+    hooks.hideMenu();
+    runThemePreview(elements.preview, config.themeId, () => {
+      const game = getSharedGame(config.themeId, config.snippetIndex, (id, hex) => botMatch.handleLocalAssignment(id, hex));
+      activeGame = game;
+      botMatch.bindGame(game);
+      elements.themeNameBadge.textContent = THEMES[config.themeId].name;
+      sound.playApply();
+
+      const vsBot = config.opponent === 'bot';
+      // Bot rounds end themselves at the same deadline (`BotMatch.start`'s
+      // own `ROUND_DEADLINE_MS` timeout) and render the two-column
+      // scoreboard; forwarding `onExpire` there too would race it into
+      // also opening the solo (single-score) result view. Alone rounds
+      // have nothing else watching the clock, so they need it.
+      timerHud.start(config.timeMode, vsBot ? undefined : () => game.reveal());
+      if (vsBot) {
+        botMatch.start({
+          themeId: config.themeId,
+          snippetIndex: config.snippetIndex,
+          timeMode: config.timeMode,
+          difficulty: config.botDifficulty,
+        });
+      } else {
+        botMatch.stop();
+      }
+    }, () => sound.playOpen());
+  }
+
   elements.playBtn.addEventListener('click', () => {
-    const timeMode = checkedValue<SoloTimeMode>(timeModeInputs, '1min');
+    const timeMode = checkedValue<SoloTimeMode>(timeModeInputs, '2min');
     const themeMode = checkedValue<SoloThemeMode>(themeModeInputs, 'random');
     const opponent = checkedValue<SoloOpponent>(opponentInputs, 'alone');
     const botDifficulty = checkedValue<BotDifficulty>(botDifficultyInputs, 'easy');
@@ -165,32 +241,55 @@ export function createSoloConfigFlow(
       ? themeGrid.selected
       : themeIds[Math.floor(Math.random() * themeIds.length)];
 
-    lastConfig = {
+    beginRound({
       themeId,
       snippetIndex: pickRandomSnippetIndex(),
       timeMode,
+      themeMode,
       opponent,
       botDifficulty,
-    };
-    onStart(lastConfig);
+    });
   });
 
-  return {
-    startTimer(mode) {
-      startTimerHud(mode);
-      if (lastConfig?.opponent === 'bot') {
-        botMatch.start({
-          themeId: lastConfig.themeId,
-          snippetIndex: lastConfig.snippetIndex,
-          timeMode: lastConfig.timeMode,
-          difficulty: lastConfig.botDifficulty,
-        });
-      } else {
-        botMatch.stop();
-      }
-    },
-    handleLocalAssignment(id, hex) {
-      botMatch.handleLocalAssignment(id, hex);
-    },
-  };
+  /** "Keep Comparing": lets the player keep tweaking colors after a
+   * reveal instead of being stuck admiring the score. Unlocks the
+   * Reveal button for the rest of the round (`enableExtendedPlay`) and
+   * restarts the HUD in elapsed-time "NO LIMIT" mode — an explicit
+   * countdown still running would otherwise force another auto-reveal
+   * mid-tweak (see `beginRound`'s `onExpire`). */
+  function keepComparing(): void {
+    if (!soloActive || !activeGame) return;
+    activeGame.enableExtendedPlay();
+    timerHud.start('none');
+  }
+
+  /** "Play Again": a random-theme round immediately rerolls a new theme
+   * and snippet and starts over, with no extra input needed. A
+   * chosen-theme round instead reopens the menu (already sitting on
+   * "choose" with the theme grid visible) so the player picks their
+   * next theme, same as starting any other chosen-theme round. */
+  function playAgain(): void {
+    if (!soloActive || !lastConfig) return;
+    if (lastConfig.themeMode === 'choose') {
+      hooks.showMenu();
+      return;
+    }
+    const themeIds = Object.keys(THEMES) as ThemeId[];
+    const themeId = themeIds[Math.floor(Math.random() * themeIds.length)];
+    beginRound({ ...lastConfig, themeId, snippetIndex: pickRandomSnippetIndex() });
+  }
+
+  /** Ends the active solo round and returns to the main menu — wired to
+   * the timer HUD's own Quit button, which is visible for as long as a
+   * solo round is live (menu, mid-round, and after a reveal alike). */
+  function quit(): void {
+    if (!soloActive) return;
+    soloActive = false;
+    botMatch.stop();
+    timerHud.hide();
+    hooks.showMenu();
+  }
+
+  closeResultBtn.addEventListener('click', keepComparing);
+  playAgainBtn.addEventListener('click', playAgain);
 }
