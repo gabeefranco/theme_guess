@@ -49,6 +49,29 @@ WebSocket server to it. Matchmaking and room/session logic are not
 implemented yet — see `backend/src/matchmaking/README.md` and
 `backend/src/rooms/README.md`.
 
+## Deployment
+
+The frontend (static Vite build) and backend (persistent Node
+HTTP+WebSocket process) deploy independently and to different kinds of
+host.
+
+**Frontend on Netlify:** the root `netlify.toml` builds from
+`frontend/` (`npm run build`, publish `frontend/dist`). Point this site
+at your deployed backend by setting `VITE_WS_URL` under Site settings
+-> Environment variables (or `netlify env:set VITE_WS_URL
+wss://your-backend-host`) — it's read at build time by
+`frontend/src/net/client.ts`. Use `wss://`, not `ws://`: once the
+Netlify site is served over https, a plain `ws://` socket is blocked as
+mixed content (the client warns in the console if this is
+misconfigured). See `frontend/.env.example`.
+
+**Backend:** Netlify doesn't run long-lived Node processes, so
+`backend/` needs a real host (Fly.io, Render, Railway, a VPS, ...) that
+can keep a WebSocket server alive. It listens on `process.env.PORT`
+(see `backend/src/index.js`), which most such hosts set automatically;
+override it manually if yours doesn't. Whatever host/port it ends up
+on, put that address into the frontend's `VITE_WS_URL` above.
+
 ## Status
 
 Single-player game: playable. Multiplayer: backend is a bare HTTP+WS

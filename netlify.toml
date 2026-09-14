@@ -1,0 +1,16 @@
+[build]
+base = "frontend"
+command = "npm run build"
+publish = "dist"
+
+[build.environment]
+NODE_VERSION = "20"
+
+# The multiplayer WebSocket backend (backend/) is a persistent Node
+# process — it does not run on Netlify. Deploy it separately (Fly.io,
+# Render, Railway, a VPS, ...) and point this site at it by setting
+# VITE_WS_URL in Site settings -> Environment variables (Netlify
+# dashboard) or via `netlify env:set VITE_WS_URL wss://your-backend-host`.
+# It must be `wss://` (not `ws://`) once this site is served over
+# https, or browsers block the connection as mixed content. See
+# frontend/.env.example and frontend/src/net/client.ts.

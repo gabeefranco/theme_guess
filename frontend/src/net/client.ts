@@ -10,6 +10,17 @@ const DEFAULT_WS_URL = 'ws://localhost:8080';
  * dev backend. */
 export const WS_URL = import.meta.env.VITE_WS_URL || DEFAULT_WS_URL;
 
+// A page served over https can't open a plain ws:// socket (browsers
+// block it as mixed content) — this only bites once VITE_WS_URL is
+// left unset/misconfigured on an https deploy (e.g. Netlify), so warn
+// loudly instead of failing silently as a closed connection.
+if (typeof location !== 'undefined' && location.protocol === 'https:' && WS_URL.startsWith('ws://')) {
+  console.warn(
+    `[net] VITE_WS_URL is "${WS_URL}" but this page is served over https — ` +
+      'the browser will block it as mixed content. Set VITE_WS_URL to a wss:// URL.',
+  );
+}
+
 /** Lifecycle of the underlying socket. `closed` covers both a clean
  * close and an error — reconnecting is out of scope here, callers that
  * care just need to know the connection is gone. */
